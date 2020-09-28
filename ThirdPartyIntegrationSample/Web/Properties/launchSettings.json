@@ -19,7 +19,7 @@
     "Web": {
       "commandName": "Project",
       "launchBrowser": true,
-      "launchUrl": "api/weatherForecast",
+      "launchUrl": "api/infos",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
@@ -28,7 +28,7 @@
     "WebProd": {
       "commandName": "Project",
       "launchBrowser": true,
-      "launchUrl": "api/weatherForecast",
+      "launchUrl": "api/infos",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Production"
       },
