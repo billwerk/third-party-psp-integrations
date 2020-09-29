@@ -9,8 +9,8 @@ namespace Web.Controllers
     public class IntegrationInfoController : ApiControllerBase
     {
         [HttpGet]
-        [Route("api/integrationInfo/{id}")]
-        public ExternalIntegrationInfoDTO Get(string id)
+        [Route("api/integrationInfo")]
+        public ExternalIntegrationInfoDTO Get()
         {
             return new ExternalIntegrationInfoDTO();
         }
