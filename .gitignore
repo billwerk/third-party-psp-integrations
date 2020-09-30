@@ -31,5 +31,8 @@ msbuild.wrn
 # Visual Studio 2015
 .vs/
 
-#Rider
+# Rider
 .idea/
+
+# Publish results publish
+publish/
