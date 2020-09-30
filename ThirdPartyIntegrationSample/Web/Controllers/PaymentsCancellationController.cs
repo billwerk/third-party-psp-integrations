@@ -1,4 +1,4 @@
-﻿using Billwerk.Payment.SDK.DTO.Cancellation;
+﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

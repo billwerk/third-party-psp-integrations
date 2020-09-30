@@ -1,4 +1,4 @@
-﻿using Billwerk.Payment.SDK.DTO.Preauth;
+﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

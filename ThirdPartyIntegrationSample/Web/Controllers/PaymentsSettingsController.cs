@@ -1,4 +1,4 @@
-﻿using Billwerk.Payment.SDK.DTO.IntegrationInfo;
+﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,9 +10,9 @@ namespace Web.Controllers
     {
         [HttpPost]
         [Route("api/validateSettings")]
-        public ExternalIntegrationSettingsErrorDTO Validate(ExternalIntegrationValidateSettingsRequestDTO dto)
+        public ExternalIntegrationValidateSettingsDTO Validate(ExternalIntegrationValidateSettingsRequestDTO dto)
         {
-            return new ExternalIntegrationSettingsErrorDTO();
+            return new ExternalIntegrationValidateSettingsDTO();
         }
     }
 }

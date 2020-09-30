@@ -1,4 +1,4 @@
-﻿using Billwerk.Payment.SDK.DTO.Refund;
+﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
