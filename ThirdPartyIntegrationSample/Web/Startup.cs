@@ -99,7 +99,14 @@ namespace Web {
             
             app.UseMiddleware<LogContextValuesMiddleware>();
             
-            app.UseEndpoints(endpoints => endpoints.MapControllers());
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Dashboard}/{action=Get}/{id?}");
+            });
+
+            app.UseHangfireDashboard();
         }
     }
 }
