@@ -1,4 +1,6 @@
-﻿namespace Business.PayOne.Model
+﻿using Business.PayOne.Helpers;
+
+namespace Business.PayOne.Model
 {
     public abstract class ModelBase
     {

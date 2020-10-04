@@ -1,4 +1,6 @@
-﻿namespace Business.PayOne.Model.Responses
+﻿using Business.PayOne.Helpers;
+
+namespace Business.PayOne.Model.Responses
 {
     public abstract class ResponseBase : ModelBase
     {
