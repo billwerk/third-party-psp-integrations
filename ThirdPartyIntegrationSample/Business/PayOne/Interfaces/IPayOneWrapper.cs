@@ -1,9 +1,8 @@
 ﻿using System.Threading.Tasks;
-using Business.PayOne.Model;
 using Business.PayOne.Model.Requests;
 using Core.Rest;
 
-namespace Business.PayOne
+namespace Business.PayOne.Interfaces
 {
     public interface IPayOneWrapper
     {

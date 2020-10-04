@@ -1,3 +1,6 @@
+using Business.Interfaces;
+using Business.PayOne.Factories;
+using Business.PayOne.Services;
 using Hangfire;
 using Hangfire.Mongo;
 using Hangfire.Mongo.Migration.Strategies;
@@ -45,6 +48,8 @@ namespace Web {
             services.AddSingleton(MongoClientFactory.Create(services.BuildServiceProvider().GetService<IGlobalSettings>().MongoHost));
             services.AddScoped<IMongoContext, MongoContext>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IExternalIntegrationInfoFactory, PayOneExternalIntegrationInfoFactory>();
+            services.AddScoped<IExternalSettingsValidator, PayOneExternalSettingsValidator>();
             
             // Add Hangfire services.
             services.AddHangfire(configuration => configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)

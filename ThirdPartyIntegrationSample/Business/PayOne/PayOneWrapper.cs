@@ -1,5 +1,6 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
+using Business.PayOne.Interfaces;
 using Business.PayOne.Model.Requests;
 using Core.Interfaces;
 using Core.Rest;

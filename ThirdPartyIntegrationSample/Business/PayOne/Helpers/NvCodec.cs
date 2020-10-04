@@ -2,7 +2,7 @@
 using System.Collections.Specialized;
 using System.Web;
 
-namespace Business.PayOne
+namespace Business.PayOne.Helpers
 {
     public class NvCodec : NameValueCollection
     {
