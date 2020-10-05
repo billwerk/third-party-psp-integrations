@@ -3,5 +3,6 @@
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=Dateofsignature/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=Preauth/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=Preauthorization/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/UserDictionary/Words/=Prenotification/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=thirdparty/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=YYYYMMDD/@EntryIndexedValue">True</s:Boolean></wpf:ResourceDictionary>

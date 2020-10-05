@@ -2,7 +2,7 @@
 {
     public class RefundRequest : RequestBase
     {
-        public RefundRequest(bool initialPayment, PSPSettingsPayOne settings)
+        public RefundRequest(bool initialPayment, PayOnePSPSettings settings)
             : base(initialPayment, settings)
         {
         }

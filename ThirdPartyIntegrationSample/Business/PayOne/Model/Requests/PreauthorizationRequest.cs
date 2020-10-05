@@ -2,7 +2,7 @@
 {
     public class PreauthorizationRequest: RequestBase
     {
-        public PreauthorizationRequest(bool initialPayment, PSPSettingsPayOne settings) 
+        public PreauthorizationRequest(bool initialPayment, PayOnePSPSettings settings) 
             : base(initialPayment, settings)
         {
             AId = settings.AccountId;

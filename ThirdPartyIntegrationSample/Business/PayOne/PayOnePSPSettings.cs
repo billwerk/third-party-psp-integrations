@@ -7,9 +7,9 @@ using Business.PayOne.Model.Enums;
 
 namespace Business.PayOne
 {
-    public class PSPSettingsPayOne : PSPSettings
+    public class PayOnePSPSettings : PSPSettings
     {
-        public PSPSettingsPayOne(IList<MerchantSettingValue> merchantSettings)
+        public PayOnePSPSettings(IList<MerchantSettingValue> merchantSettings)
         {
             MerchantId = GetValueByKey(merchantSettings, PayOneConstants.MerchantIdKey);
             AccountId = GetValueByKey(merchantSettings, PayOneConstants.AccountIdKey);

@@ -2,7 +2,7 @@
 {
     public class CaptureRequest : RequestBase
     {
-        public CaptureRequest(bool initialPayment, PSPSettingsPayOne settings) 
+        public CaptureRequest(bool initialPayment, PayOnePSPSettings settings) 
             : base(initialPayment, settings)
         {
         }
