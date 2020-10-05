@@ -4,7 +4,7 @@ namespace Business.PayOne.Model.Requests
 {
     public abstract class RequestBase
     {
-        protected RequestBase(bool initialPayment, PSPSettingsPayOne settings)
+        protected RequestBase(bool initialPayment, PayOnePSPSettings settings)
         {
             MId = settings.MerchantId;
             PortalId = initialPayment ? settings.PortalId : settings.PortalIdRecurring;

@@ -8,5 +8,8 @@
         public const string KeyKey = "Key";
         public const string PortalIdRecurringKey = "PortalIdRecurring";
         public const string KeyRecurringKey = "KeyRecurring";
+        
+        public const int DirectDebitInitialPaymentProcessingDays = 5;
+        public const int DirectDebitRecurringPaymentProcessingDays = 2;
     }
 }

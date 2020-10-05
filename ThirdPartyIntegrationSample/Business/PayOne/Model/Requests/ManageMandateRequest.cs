@@ -2,7 +2,7 @@
 {
     public class ManageMandateRequest : RequestBase
     {
-        public ManageMandateRequest(bool initialPayment, PSPSettingsPayOne settings)
+        public ManageMandateRequest(bool initialPayment, PayOnePSPSettings settings)
             : base(initialPayment, settings)
         {
             AId = settings.AccountId;
