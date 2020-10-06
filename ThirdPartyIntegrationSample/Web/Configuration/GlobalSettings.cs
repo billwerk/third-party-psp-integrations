@@ -1,6 +1,5 @@
-﻿using Microsoft.Extensions.Options;
-using Persistence.Interfaces;
-using Persistence.Models;
+﻿using Core.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace Web.Configuration
 {
@@ -10,9 +9,13 @@ namespace Web.Configuration
         {
             MongoHost = options?.Value?.MongoHost;
             TestUser = options?.Value?.TestUser;
+            EncoderKey = options?.Value?.EncoderKey;
+            EncoderIv = options?.Value?.EncoderIv;
         }
 
         public string MongoHost { get; }
-        public User TestUser { get; }
+        public IUser TestUser { get; }
+        public string EncoderKey { get; }
+        public string EncoderIv { get; }
     }
 }

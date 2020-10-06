@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Core.Interfaces;
 using Persistence.Interfaces;
 using Persistence.Models;
 
