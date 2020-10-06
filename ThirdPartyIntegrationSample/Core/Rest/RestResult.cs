@@ -2,15 +2,9 @@
 
 namespace Core.Rest
 {
-    public class RestResult<TResult>
+    public class RestResult<TData> : ResultBase<TData>
     {
-        public TResult Result { get; set; }
-
-        public Error Error { get; set; }
-
         public HttpStatusCode StatusCode { get; set; }
-
-        public bool HasErrors => Error != null;
 
         public bool IsSuccessStatusCode
         {
@@ -18,26 +12,25 @@ namespace Core.Rest
             {
                 if (StatusCode >= HttpStatusCode.OK)
                 {
-                    return StatusCode <= (HttpStatusCode)299;
+                    return StatusCode <= (HttpStatusCode) 299;
                 }
+
                 return false;
             }
         }
 
-        public RestResult()
+        public RestResult(string code, string message) 
+            : base(code, message)
         {
-
         }
 
-        public RestResult(string code, string message)
-        {
-            Error = new Error(code, message);
-        }
-
-        public RestResult(string message)
+        public RestResult(string message) 
             : this(null, message)
         {
-
+        }
+        
+        public RestResult()
+        {
         }
     }
 }

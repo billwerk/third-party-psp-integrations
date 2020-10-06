@@ -1,6 +1,9 @@
 using Business.Interfaces;
 using Business.PayOne.Factories;
 using Business.PayOne.Services;
+using Business.Services;
+using Core.Interfaces;
+using Core.Services;
 using Hangfire;
 using Hangfire.Mongo;
 using Hangfire.Mongo.Migration.Strategies;
@@ -50,6 +53,9 @@ namespace Web {
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IExternalIntegrationInfoFactory, PayOneExternalIntegrationInfoFactory>();
             services.AddScoped<IExternalSettingsValidator, PayOneExternalSettingsValidator>();
+            services.AddScoped<IEncoder, Encoder>();
+            services.AddScoped<ITetheredPaymentInformationEncoder, TetheredPaymentInformationEncoder>();
+            services.AddScoped<IPaymentService, PaymentService>();
             
             // Add Hangfire services.
             services.AddHangfire(configuration => configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)

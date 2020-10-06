@@ -61,7 +61,7 @@ namespace Core.Rest
                 result = new RestResult<string>
                 {
                     StatusCode = response.StatusCode,
-                    Result = responseData
+                    Data = responseData
                 };
             }
 

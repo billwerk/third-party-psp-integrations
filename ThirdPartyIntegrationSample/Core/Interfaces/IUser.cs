@@ -1,10 +1,6 @@
-﻿using System;
-using Core.Interfaces;
-using Persistence.Interfaces;
-
-namespace Persistence.Models
+﻿namespace Core.Interfaces
 {
-    public class User : DbObject, ISoftDelete, IUser
+    public interface IUser
     {
         public string FirstName { get; set; }
         
@@ -13,8 +9,5 @@ namespace Persistence.Models
         public string UserName { get; set; }
         
         public string Password { get; set; }
-        
-        
-        public DateTime? DeletedAt { get; }
     }
 }
