@@ -26,7 +26,7 @@ namespace Web.Controllers
         }
         
         [HttpPost]
-        [Route("api/preauthorize")]
+        [Route("api/preauth")]
         public ExternalPreauthTransactionDTO Preauthorize(ExternalPreauthRequestDTO dto)
         {
             return new ExternalPreauthTransactionDTO();
