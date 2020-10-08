@@ -11,7 +11,7 @@ namespace Web.Controllers
     {
         private readonly IExternalIntegrationInfoFactory _externalIntegrationInfoFactory;
 
-        public IntegrationInfoController(IExternalIntegrationInfoFactory externalIntegrationInfoFactory)
+        public IntegrationInfoController(IExternalIntegrationInfoFactory externalIntegrationInfoFactory, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) : base(paymentServiceMethodsExecutor)
         {
             _externalIntegrationInfoFactory = externalIntegrationInfoFactory;
         }

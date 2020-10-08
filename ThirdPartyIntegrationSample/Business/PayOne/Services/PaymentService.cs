@@ -1,17 +1,21 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
 using Business.Interfaces;
+using Persistence.Mongo;
 
 namespace Business.PayOne.Services
 {
     public class PaymentService : PaymentServiceBase, IPaymentService
     {
-        public PaymentService(ITetheredPaymentInformationEncoder paymentInformationEncoder) 
-            : base(paymentInformationEncoder)
+        private readonly IMongoContext _mongoContext;
+        
+        public PaymentService(IMongoContext mongoContext)
         {
+            _mongoContext = mongoContext;
         }
 
         public Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO dto)
@@ -31,7 +35,9 @@ namespace Business.PayOne.Services
 
         public Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
         {
-            throw new System.NotImplementedException();
+            Console.WriteLine(_mongoContext.Provider);
+            
+            return new Task<ExternalPaymentCancellationDTO>(() => new ExternalPaymentCancellationDTO());
         }
 
         public Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId)

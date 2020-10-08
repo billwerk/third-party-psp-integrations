@@ -11,7 +11,8 @@ namespace Web.Controllers
     {
         private readonly IExternalSettingsValidator _externalSettingsValidator;
 
-        public PaymentsSettingsController(IExternalSettingsValidator externalSettingsValidator)
+        public PaymentsSettingsController(IExternalSettingsValidator externalSettingsValidator, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) 
+            : base(paymentServiceMethodsExecutor)
         {
             _externalSettingsValidator = externalSettingsValidator;
         }
