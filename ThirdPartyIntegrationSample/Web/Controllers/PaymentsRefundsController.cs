@@ -1,4 +1,5 @@
 ﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
+using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,6 +20,10 @@ namespace Web.Controllers
         public ExternalRefundTransactionDTO Refund(ExternalRefundRequestDTO dto)
         {
             return new ExternalRefundTransactionDTO();
+        }
+
+        public PaymentsRefundsController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) : base(paymentServiceMethodsExecutor)
+        {
         }
     }
 }

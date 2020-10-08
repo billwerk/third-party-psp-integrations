@@ -56,6 +56,8 @@ namespace Web {
             services.AddScoped<IEncoder, Encoder>();
             services.AddScoped<ITetheredPaymentInformationEncoder, TetheredPaymentInformationEncoder>();
             services.AddScoped<IPaymentService, PaymentService>();
+            services.AddScoped<ICheckoutService, CheckoutService>();
+            services.AddScoped<IPaymentServiceMethodsExecutor, PaymentServiceMethodsExecutor>();
             
             // Add Hangfire services.
             services.AddHangfire(configuration => configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)

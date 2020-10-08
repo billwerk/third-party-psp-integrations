@@ -11,18 +11,18 @@ namespace Web.Controllers
     [ApiController]
     public class PaymentsPreauthorizationController : ApiControllerBase
     {
-        private readonly IPaymentService _paymentService;
+        private readonly ICheckoutService _checkoutService;
 
-        public PaymentsPreauthorizationController(IPaymentService paymentService)
+        public PaymentsPreauthorizationController(ICheckoutService checkoutService, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) : base(paymentServiceMethodsExecutor)
         {
-            _paymentService = paymentService;
+            _checkoutService = checkoutService;
         }
 
         [HttpPost]
         [Route("api/checkout")]
         public ObjectResult Checkout([FromBody] JsonElement json)
         {
-            return BuildResponseFromResult<CheckoutResult, string>(_paymentService.Checkout(JsonSerializer.Serialize(json)));
+            return BuildResponseFromResult<CheckoutResult, string>(_checkoutService.Checkout(JsonSerializer.Serialize(json)));
         }
         
         [HttpPost]

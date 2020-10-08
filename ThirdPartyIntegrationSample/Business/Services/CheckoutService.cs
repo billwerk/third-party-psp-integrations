@@ -6,7 +6,7 @@ namespace Business.Services
     {
         private readonly ITetheredPaymentInformationEncoder _paymentInformationEncoder;
 
-        protected CheckoutService(ITetheredPaymentInformationEncoder paymentInformationEncoder)
+        public CheckoutService(ITetheredPaymentInformationEncoder paymentInformationEncoder)
         {
             _paymentInformationEncoder = paymentInformationEncoder;
         }

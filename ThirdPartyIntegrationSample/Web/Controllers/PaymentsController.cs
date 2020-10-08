@@ -1,4 +1,5 @@
 ﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
+using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,6 +20,11 @@ namespace Web.Controllers
         public ExternalPaymentTransactionDTO Pay(ExternalPaymentRequestDTO dto)
         {
             return new ExternalPaymentTransactionDTO();
+        }
+
+        public PaymentsController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) 
+            : base(paymentServiceMethodsExecutor)
+        {
         }
     }
 }
