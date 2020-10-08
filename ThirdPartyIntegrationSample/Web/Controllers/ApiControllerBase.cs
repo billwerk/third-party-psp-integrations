@@ -1,5 +1,5 @@
 ﻿using Core.Rest;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 
 namespace Web.Controllers
 {
