@@ -9,6 +9,7 @@ namespace Business.PayOne.Model.Responses
         protected ResponseBase(string response)
         {
             var codec = new NvCodec();
+            
             _rawData = response;
             codec.Decode(response);
             Decode(codec);
@@ -23,6 +24,7 @@ namespace Business.PayOne.Model.Responses
         public string TxId { get; set; }
         public string ErrorCode { get; set; }
         public string ErrorMessage { get; set; }
+        
         public string RedirectUrl { get; set; }
     }
 }

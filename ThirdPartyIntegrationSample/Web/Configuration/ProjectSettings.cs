@@ -11,5 +11,11 @@ namespace Web.Configuration
         public string EncoderKey { get; set; }
         
         public string EncoderIv { get; set; }
+        
+        public bool UseProxy { get; set; }
+        
+        public string ProxyHost { get; set; }
+        
+        public int ProxyPort { get; set; }
     }
 }

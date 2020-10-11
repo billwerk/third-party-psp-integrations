@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Business.Interfaces;
 using Core.Rest;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +32,19 @@ namespace Web.Controllers
             else
             {
                 return Ok(result.Data);
+            }
+        }
+        
+        protected ObjectResult BuildResponse<T>(T result)
+            where T : ExternalPaymentTransactionBaseDTO
+        {
+            if (result.Error != null)
+            {
+                return BadRequest(result);
+            }
+            else
+            {
+                return Ok(result);
             }
         }
     }

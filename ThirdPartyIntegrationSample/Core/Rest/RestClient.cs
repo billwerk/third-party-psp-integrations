@@ -15,11 +15,10 @@ namespace Core.Rest
         private readonly ILogger<RestClient> _logger;
 
         public RestClient(
-            HttpClient httpClient,
             IEnumerable<IHttpContentFactory> httpContentFactories, 
-            ILogger<RestClient> logger)
+            ILogger<RestClient> logger, IHttpClientHandlerFactory handlerFactory)
         {
-            _httpClient = httpClient;
+            _httpClient = new HttpClient(handlerFactory.Create());
             _httpContentFactories = httpContentFactories;
             _logger = logger;
         }

@@ -14,9 +14,11 @@
         public string BankAccount { get; set; }
         public string BankCode { get; set; }
         public string BankAccountHolder { get; set; }
-        public string Iban { get; set; }
-        public string Bic { get; set; }
-        public string MandateIdentification { get; set; }
+        public string IBAN { get; set; }
+        public string BIC { get; set; }
+        public string Mandate_Identification { get; set; }
+        //public string Mandate_Dateofsignature { get; set; }
+        //public string Creditor_Identifier { get; set; }
     }
 
     public class OnlineTransaction : PaymentBearer

@@ -34,8 +34,8 @@ namespace Business.PayOne.Model
         public string TxId { get; set; }
         public string Reference { get; set; }
         public string FailedCause { get; set; }
-        public string SequenceNumber { get; set; }
-        //N..7,2 Total payment request (in largest currency unit! e.g. Euro); not set for enhancement reminder status information without paid amount
+        public string Sequencenumber { get; set; }
+        //N..7,2 Total payment request (in largest currency unit! e.g. Euro); not set for encashment reminder status information without paid amount
         public string Receivable { get; set; }
         public string Balance { get; set; }
     }

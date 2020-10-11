@@ -20,6 +20,12 @@
 
     <ItemGroup>
       <Compile Remove="Interfaces\IPaymentServiceExecutor.cs" />
+      <Compile Remove="Models\TetheredPaymentData.cs" />
+      <Compile Remove="PayOne\Enums\PaymentProviderRole.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Helpers" />
     </ItemGroup>
 
 </Project>

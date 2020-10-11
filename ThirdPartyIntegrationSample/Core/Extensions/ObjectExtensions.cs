@@ -11,7 +11,7 @@ namespace Core.Extensions
             return source.ToDictionary<object>();
         }
 
-        public static IDictionary<string, T> ToDictionary<T>(this object source)
+        public static IDictionary<string, T> ToDictionary<T>(this object source, bool useLowerCaseForKeys = false)
         {
             if (source == null) ThrowExceptionWhenSourceArgumentIsNull();
 
@@ -21,7 +21,7 @@ namespace Core.Extensions
                 var value = property.GetValue(source);
                 if (IsOfType<T>(value))
                 {
-                    dictionary.Add(property.Name, (T)value);
+                    dictionary.Add(useLowerCaseForKeys ? property.Name.ToLowerInvariant() : property.Name, (T)value);
                 }
             }
             return dictionary;
