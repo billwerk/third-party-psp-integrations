@@ -1,8 +1,15 @@
+using System.Collections.Generic;
+using System.Net.Http;
 using Business.Interfaces;
+using Business.PayOne;
 using Business.PayOne.Factories;
+using Business.PayOne.Interfaces;
+using Business.PayOne.Model;
 using Business.PayOne.Services;
 using Business.Services;
 using Core.Interfaces;
+using Core.Rest;
+using Core.Serializer;
 using Core.Services;
 using Hangfire;
 using Hangfire.Mongo;
@@ -15,6 +22,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Persistence.Interfaces;
 using Persistence.Mongo;
 using Persistence.Services;
@@ -51,13 +60,22 @@ namespace Web {
             services.AddSingleton(MongoClientFactory.Create(services.BuildServiceProvider().GetService<IGlobalSettings>().MongoHost));
             services.AddScoped<IMongoContext, MongoContext>();
             services.AddScoped<IUserService, UserService>();
-            services.AddScoped<IExternalIntegrationInfoFactory, PayOneExternalIntegrationInfoFactory>();
+            services.AddSingleton<IExternalIntegrationInfoFactory, PayOneExternalIntegrationInfoFactory>();
             services.AddScoped<IExternalSettingsValidator, PayOneExternalSettingsValidator>();
             services.AddScoped<IEncoder, Encoder>();
             services.AddScoped<ITetheredPaymentInformationEncoder, TetheredPaymentInformationEncoder>();
             services.AddScoped<IPaymentService, PaymentService>();
             services.AddScoped<ICheckoutService, CheckoutService>();
             services.AddScoped<IPaymentServiceMethodsExecutor, PaymentServiceMethodsExecutor>();
+            services.AddScoped<IInitialTokenDecoder, InitialTokenDecoder>();
+            services.AddScoped<IPaymentServiceWrapper, PaymentServiceWrapper>();
+            services.AddScoped<IPaymentTransactionService, PaymentTransactionService>();
+            services.AddScoped<IPayOneWrapper, PayOneWrapper>();
+            services.AddScoped<IRestClient, RestClient>();
+            services.AddScoped<HttpClient, HttpClient>();
+            services.AddSingleton<IHttpContentFactory, PayOneFormUrlEncodedContentFactory>();
+            services.AddSingleton<IHttpClientHandlerFactory, HttpClientHandlerFactory>();
+            services.AddScoped<IRecurringTokenEncoder<RecurringToken>, PayOneRecurringTokenEncoder>();
             
             // Add Hangfire services.
             services.AddHangfire(configuration => configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
@@ -79,6 +97,26 @@ namespace Web {
 
             // Add the processing server as IHostedService
             services.AddHangfireServer(serverOptions => { serverOptions.ServerName = "Hangfire server 1"; });
+            
+            services.AddMvc().AddNewtonsoftJson(options =>
+            {
+                options.SerializerSettings.Converters = new List<JsonConverter>
+                {
+                    new StringConverter(),
+                    new DateTimeConverter(),
+                    new StringEnumConverter(),
+                    new DecimalJsonConverter(),
+                    new ObjectIdConverter(),
+                    new CultureInfoConverter(),
+                    new PaymentBearerJsonConverter()
+                };
+                options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+                options.SerializerSettings.FloatParseHandling = FloatParseHandling.Decimal;
+                options.SerializerSettings.MissingMemberHandling = MissingMemberHandling.Ignore;
+                options.SerializerSettings.StringEscapeHandling = StringEscapeHandling.Default;
+                options.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.RoundtripKind;
+                options.SerializerSettings.DateParseHandling = DateParseHandling.None;
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

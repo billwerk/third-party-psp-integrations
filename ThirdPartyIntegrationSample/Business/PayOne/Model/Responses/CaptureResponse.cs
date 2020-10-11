@@ -7,11 +7,14 @@
         {
         }
 
-        public string MandateIdentification { get; set; }
+        public string Mandate_Identification { get; set; }
+
         //YYYYMMDD
-        public string MandateDateofsignature { get; set; }
-        public string CreditorIdentifier { get; set; }
+        public string Mandate_Dateofsignature { get; set; }
+
+        public string Creditor_Identifier { get; set; }
+
         //YYYYMMDD
-        public string ClearingDate { get; set; }
+        public string Clearing_Date { get; set; }
     }
 }

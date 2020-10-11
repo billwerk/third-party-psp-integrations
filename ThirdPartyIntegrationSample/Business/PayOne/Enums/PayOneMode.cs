@@ -1,4 +1,4 @@
-﻿namespace Business.PayOne.Model.Enums
+﻿namespace Business.PayOne.Enums
 {
     public enum PayOneMode
     {

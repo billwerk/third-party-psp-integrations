@@ -2,7 +2,7 @@
 
 namespace Business.PayOne.Model.Requests
 {
-    public abstract class RequestBase
+    public abstract class RequestBase : ModelBase
     {
         protected RequestBase(bool initialPayment, PayOnePSPSettings settings)
         {
@@ -18,9 +18,9 @@ namespace Business.PayOne.Model.Requests
         public string Key { get; set; }
         public string Mode { get; set; }
         public string Encoding => "UTF-8";
-        public string IntegratorName => "billwerk.thirdparty";
-        public string IntegratorVersion => "v.1.0";
-        public string SolutionName => "billwerk.thirdparty";
-        public string SolutionVersion => "v.1.0";
+        public string Integrator_Name => "billwerk.thirdparty";
+        public string Integrator_Version => "v.1.0";
+        public string Solution_Name => "billwerk.thirdparty";
+        public string Solution_Version => "v.1.0";
     }
 }

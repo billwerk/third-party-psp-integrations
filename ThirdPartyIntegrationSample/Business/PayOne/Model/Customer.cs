@@ -5,6 +5,7 @@
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Country { get; set; }
+
         //optional
         public string Company { get; set; }
         public string CustomerId { get; set; }

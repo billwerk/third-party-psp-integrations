@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Specialized;
+using System.Net.Http;
 using Core.Rest;
 
 namespace Core.Interfaces

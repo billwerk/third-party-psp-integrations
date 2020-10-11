@@ -7,12 +7,13 @@
         {
         }
 
-        public string MandateIdentification { get; set; }
-        public string MandateStatus { get; set; }
-        public string MandateText { get; set; }
-        public string CreditorIdentifier { get; set; }
-        public string Iban { get; set; }
-        public string Bic { get; set; }
+        public string Mandate_Identification { get; set; }
+
+        public string Mandate_Status { get; set; }
+        public string Mandate_Text { get; set; }
+        public string Creditor_Identifier { get; set; }
+        public string IBAN { get; set; }
+        public string BIC { get; set; }
         public string BankAccount { get; set; }
         public string BankCode { get; set; }
         public string BankCountry { get; set; }

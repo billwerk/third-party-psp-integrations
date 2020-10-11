@@ -9,12 +9,16 @@
 
         public string UserId { get; set; }
         public string CustomerMessage { get; set; }
-        public string ProtectResultAvs { get; set; }
-        public string MandateIdentification { get; set; }
+        public string Protect_Result_AVS { get; set; }
+
+        public string Mandate_Identification { get; set; }
+
         // YYYYMMDD
-        public string MandateDateofsignature { get; set; }
-        public string CreditorIdentifier { get; set; }
+        public string Mandate_Dateofsignature { get; set; }
+
+        public string Creditor_Identifier { get; set; }
+
         // YYYYMMDD
-        public string ClearingDate { get; set; }
+        public string Clearing_Date { get; set; }
     }
 }
