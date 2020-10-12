@@ -16,16 +16,13 @@
 
     <ItemGroup>
       <PackageReference Include="Hangfire.Core" Version="1.7.13" />
+      <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     </ItemGroup>
 
     <ItemGroup>
       <Compile Remove="Interfaces\IPaymentServiceExecutor.cs" />
       <Compile Remove="Models\TetheredPaymentData.cs" />
       <Compile Remove="PayOne\Enums\PaymentProviderRole.cs" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Helpers" />
     </ItemGroup>
 
 </Project>

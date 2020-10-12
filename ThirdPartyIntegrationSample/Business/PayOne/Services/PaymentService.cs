@@ -153,8 +153,7 @@ namespace Business.PayOne.Services
                             : "****",
                         MaskedCardPan = payOnePspBearer.TruncatedCardPan,
                         ExpiryMonth = payOnePspBearer.ExpiryMonth,
-                        ExpiryYear = payOnePspBearer.ExpiryYear,
-                        //Country = ?
+                        ExpiryYear = payOnePspBearer.ExpiryYear
                     };
 
                 case PaymentProviderRole.Debit:
