@@ -21,22 +21,28 @@ namespace Business.Services
             _paymentTransactionService = paymentTransactionService;
         }
 
-        public Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
+        public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
         {
             if (!string.IsNullOrWhiteSpace(paymentDto.PaymentMeansReference.PreauthTransactionId))
             {
-                var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(paymentDto.PaymentMeansReference
-                    .PreauthTransactionId);
-                
-                if(paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
+                var paymentTransaction =
+                    _paymentTransactionService.SingleByExternalTransactionIdOrDefault(paymentDto.PaymentMeansReference
+                        .PreauthTransactionId);
+
+                if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
                 {
                     preauthDto = preauthTransaction.ToDto();
                 }
+
+
+                var paymentResult = await _paymentService.SendPayment(paymentDto, preauthDto);
+
+                var mappedPaymentTransaction = paymentResult.ToEntity();
+                mappedPaymentTransaction.SequenceNumber = 1;
+                mappedPaymentTransaction.ExternalTransactionId = paymentResult.TransactionId;
             }
 
-            var paymentResult = _paymentService.SendPayment(paymentDto, preauthDto);
-
-            return paymentResult;
+            return new ExternalPaymentTransactionDTO();
         }
 
         public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)

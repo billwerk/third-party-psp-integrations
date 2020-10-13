@@ -1,31 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using Billwerk.Payment.SDK.Enums;
-using MongoDB.Bson.Serialization.Attributes;
+using Billwerk.Payment.SDK.DTO;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 
 namespace Persistence.Models
 {
-    [BsonDiscriminator(Required = true)]
-    [BsonKnownTypes(typeof(PreauthTransaction))]
-    public abstract class PaymentTransaction : DbObject
+    public class PaymentTransaction : PaymentTransactionBase
     {
-        protected PaymentTransaction()
-        {
-            StatusHistory = new List<PaymentTransactionNewStatus>();
-        }
+        public List<ExternalPaymentChargebackItemDTO> Chargebacks { get; set; }
 
-        public string ExternalTransactionId { get; set; }
-        public string PspTransactionId { get; set; }
-        public string Currency { get; set; }
-        public decimal RequestedAmount { get; set; }
-        public DateTime LastUpdated { get; set; }
-        public List<PaymentTransactionNewStatus> StatusHistory { get; set; }
+        // not sure if we want these refund related things here
+        // Possible alternatives:
+        // * A separate GET {transactionId}/refunds endpoint
+        // * Simply looking at the refund transactions and summing them
+        // * Include refund related information here
+        public decimal RefundedAmount { get; set; }
         
-        public int SequenceNumber { get; set; }
+        public decimal RefundableAmount { get; set; }
 
-        [BsonIgnore]
-        public PaymentTransactionNewStatus? Status =>
-            StatusHistory.Count == 0 ? (PaymentTransactionNewStatus?) null : StatusHistory.Last();
+        // in the MVP this should only be filled for preauth with new payment data
+        //Mandate data and so on can be updated later
+        public PaymentBearerDTO Bearer { get; set;}
+        
+        public DateTime? DueDate { get; set; }
     }
 }

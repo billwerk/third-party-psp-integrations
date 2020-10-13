@@ -2,8 +2,8 @@
 
 namespace Persistence.Interfaces
 {
-    public interface IPaymentTransactionService : IServiceBase<PaymentTransaction>
+    public interface IPaymentTransactionService : IServiceBase<PaymentTransactionBase>
     {
-        PaymentTransaction SingleByExternalTransactionIdOrDefault(string externalTransactionId);
+        PaymentTransactionBase SingleByExternalTransactionIdOrDefault(string externalTransactionId);
     }
 }

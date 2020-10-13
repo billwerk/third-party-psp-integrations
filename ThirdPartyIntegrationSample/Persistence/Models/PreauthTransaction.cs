@@ -3,7 +3,7 @@ using Billwerk.Payment.SDK.DTO;
 
 namespace Persistence.Models
 {
-    public class PreauthTransaction : PaymentTransaction
+    public class PreauthTransaction : PaymentTransactionBase
     {
         public decimal AuthorizedAmount { get; set; }
 
