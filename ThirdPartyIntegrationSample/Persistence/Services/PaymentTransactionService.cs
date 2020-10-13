@@ -7,16 +7,16 @@ using Persistence.Mongo;
 namespace Persistence.Services
 {
     public class PaymentTransactionService 
-        : ServiceBase<PaymentTransaction>, IPaymentTransactionService
+        : ServiceBase<PaymentTransactionBase>, IPaymentTransactionService
     {
         public PaymentTransactionService(IMongoContext db) 
             : base(db)
         {
         }
 
-        public PaymentTransaction SingleByExternalTransactionIdOrDefault(string externalTransactionId)
+        public PaymentTransactionBase SingleByExternalTransactionIdOrDefault(string externalTransactionId)
         {
-            var results = Db.Find<PaymentTransaction>(Query<PaymentTransaction>.EQ(p => p.ExternalTransactionId, externalTransactionId));
+            var results = Db.Find<PaymentTransactionBase>(Query<PaymentTransactionBase>.EQ(p => p.ExternalTransactionId, externalTransactionId));
             return results.SingleOrDefault();
         }
     }
