@@ -8,7 +8,7 @@ namespace Business.Interfaces
 {
     public interface IPaymentService
     {
-        Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO dto);
+        Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto);
         Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto);
         Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto);
         Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId);

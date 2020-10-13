@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
 
 namespace Business.PayOne.Services
@@ -26,6 +27,19 @@ namespace Business.PayOne.Services
                 "C" => "Discover",
                 "B" => "Carte Bleue",
                 _ => ""
+            };
+        }
+        
+        protected static T BuildAndPopulateExternalTransactionBaseDto<T>(ExternalPaymentTransactionBaseRequestDTO dto,
+            string pspTransactionId) where T : ExternalPaymentTransactionBaseDTO, new()
+        {
+            return new T
+            {
+                PspTransactionId = pspTransactionId,
+                LastUpdated = DateTime.UtcNow,
+                RequestedAmount = dto.RequestedAmount,
+                Currency = dto.Currency,
+                TransactionId = dto.TransactionId
             };
         }
     }

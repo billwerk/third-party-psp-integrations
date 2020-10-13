@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Business.PayOne.Helpers;
 using Business.PayOne.Interfaces;
@@ -22,9 +23,17 @@ namespace Business.PayOne
         
         public async Task<RestResult<string>> ExecutePayOneRequestAsync(RequestBase requestDto)
         {
-            requestDto.Encode(_nvCodec);
-            
-            return await _restClient.ExecuteAsync(UrlPayOneApi, HttpMethod.Post, _nvCodec, HttpContentType.FormUrlEncodedContent);
+            try
+            {
+                requestDto.Encode(_nvCodec);
+
+                return await _restClient.ExecuteAsync(UrlPayOneApi, HttpMethod.Post, _nvCodec,
+                    HttpContentType.FormUrlEncodedContent);
+            }
+            catch (Exception ex)
+            {
+                return new RestResult<string>(ex.Message);
+            }
         }
     }
 }
