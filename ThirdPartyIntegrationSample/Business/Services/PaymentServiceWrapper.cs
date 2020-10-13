@@ -3,7 +3,7 @@ using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
-using Billwerk.Payment.SDK.Enums;
+using Business.Helpers;
 using Business.Interfaces;
 using Persistence.Interfaces;
 using Persistence.Models;
@@ -21,10 +21,22 @@ namespace Business.Services
             _paymentTransactionService = paymentTransactionService;
         }
 
-
-        public Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO dto)
+        public Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
         {
-            throw new System.NotImplementedException();
+            if (!string.IsNullOrWhiteSpace(paymentDto.PaymentMeansReference.PreauthTransactionId))
+            {
+                var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(paymentDto.PaymentMeansReference
+                    .PreauthTransactionId);
+                
+                if(paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
+                {
+                    preauthDto = preauthTransaction.ToDto();
+                }
+            }
+
+            var paymentResult = _paymentService.SendPayment(paymentDto, preauthDto);
+
+            return paymentResult;
         }
 
         public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
@@ -34,29 +46,12 @@ namespace Business.Services
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
         {
-            var preauthTransaction = new PreauthTransaction
-            {
-                AuthorizedAmount = dto.RequestedAmount,
-                Currency = dto.Currency,
-                ExternalTransactionId = dto.PaymentMeansReference.PreauthTransactionId
-            };
-            preauthTransaction.ForceId();
-            dto.TransactionId = preauthTransaction.Id.ToString();
-            preauthTransaction.StatusHistory.Add(PaymentTransactionNewStatus.Initiated);
-
-            
             var preauthResult = await _paymentService.SendPreauth(dto);
-            preauthResult.ExternalTransactionId = preauthTransaction.Id.ToString();
+
+            var preauthTransaction = preauthResult.ToEntity();
             
-            preauthTransaction.StatusHistory.Add(preauthResult.Status);
-            preauthTransaction.LastUpdated = preauthResult.LastUpdated;
-            preauthTransaction.AuthorizedAmount = preauthResult.AuthorizedAmount;
-            preauthTransaction.RequestedAmount = preauthResult.RequestedAmount;
             preauthTransaction.SequenceNumber = 0;
-            preauthTransaction.Bearer = preauthResult.Bearer;
-            preauthTransaction.ExternalTransactionId = dto.TransactionId;
-            preauthTransaction.PspTransactionId = preauthResult.ExternalTransactionId;
-            preauthTransaction.ExpiresAt = preauthResult.ExpiresAt;
+            preauthResult.ExternalTransactionId = preauthTransaction.Id.ToString();
 
             _paymentTransactionService.Create(preauthTransaction);
 

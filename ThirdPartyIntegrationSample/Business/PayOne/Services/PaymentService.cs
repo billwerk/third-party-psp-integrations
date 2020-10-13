@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Text;
 using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
@@ -40,9 +41,15 @@ namespace Business.PayOne.Services
             _recurringTokenEncoder = recurringTokenEncoder;
         }
 
-        public Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO dto)
+        public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
         {
-            throw new NotImplementedException();
+            var isCapture = string.IsNullOrWhiteSpace(paymentDto.PaymentMeansReference.PreauthTransactionId) && preauthDto != null;
+            if (isCapture)
+            {
+                return await ProcessCaptureTransactionAsync(paymentDto, preauthDto);
+            }
+
+            return null;
         }
 
         public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
@@ -65,7 +72,7 @@ namespace Business.PayOne.Services
                 Narrative_Text = role == PaymentProviderRole.OnAccount
                     ? dto.TransactionInvoiceReferenceText
                     : dto.TransactionReferenceText,
-                Reference = Base32.Encode(ObjectId.Parse(dto.TransactionId).ToByteArray()),
+                Reference = Base32.Encode(Encoding.UTF8.GetBytes(dto.TransactionId)).Substring(dto.TransactionId.Length - 20, 19),
                 Param = dto.TransactionId,
                 PaymentBearer = GetPaymentBearer(tetheredPaymentInformation, role),
                 Customer = GetPayOneCustomer(payer),
@@ -81,42 +88,7 @@ namespace Business.PayOne.Services
             _logger.LogInformation(
                 $"Processed PayOne Preapproval {response.TxId} for payment transaction {dto.TransactionId}. Status: {response.Status}");
 
-            var result = new ExternalPreauthTransactionDTO
-            {
-                PspTransactionId = response.TxId,
-                AuthorizedAmount = dto.RequestedAmount,
-                LastUpdated = DateTime.UtcNow,
-                RequestedAmount = dto.RequestedAmount,
-                Currency = dto.Currency,
-                TransactionId = dto.TransactionId,
-                ExpiresAt = DateTimeOffset.UtcNow.AddYears(1),
-                Bearer = GetPaymentBearerDto(tetheredPaymentInformation, role)
-            };
-
-            PopulateTransactionStatus(response, result);
-
-            //ToDo: Should be discussed
-            // if (result.Status == PaymentStatusValue.ThreeDSecurePending)
-            // {
-            //     postProcessUrl = response.RedirectUrl;
-            // }
-
-            if (result.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
-            {
-                result.Status = PaymentTransactionNewStatus.Pending;
-            }
-
-            if (result.Status == PaymentTransactionNewStatus.Failed) 
-                return result;
-
-            UpdateMandateIfRequired(result, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
-
-            result.RecurringToken = _recurringTokenEncoder.Encrypt(new RecurringToken
-            {
-                UserId = response.UserId
-            });
-
-            return result;
+            return BuildAndPopulateExternalPreauthTransactionDto(dto, response, tetheredPaymentInformation);
         }
 
         public Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
@@ -137,6 +109,42 @@ namespace Business.PayOne.Services
         public Task<ExternalPreauthTransactionDTO> FetchPreauth(string transactionId)
         {
             throw new NotImplementedException();
+        }
+        
+        private ExternalPreauthTransactionDTO BuildAndPopulateExternalPreauthTransactionDto(ExternalPreauthRequestDTO dto,
+            PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation)
+        {
+            var role = dto.PaymentMeansReference.Role;
+            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPreauthTransactionDTO>(dto, response.TxId);
+
+            result.AuthorizedAmount = dto.RequestedAmount;
+            //ToDo: Should be clarified
+            result.ExpiresAt = DateTimeOffset.UtcNow.AddYears(1);
+            result.Bearer = GetPaymentBearerDto(tetheredPaymentInformation, role);
+
+            PopulateTransactionStatus(response, result);
+
+            //ToDo: Should be discussed
+            // if (result.Status == PaymentStatusValue.ThreeDSecurePending)
+            // {
+            //     postProcessUrl = response.RedirectUrl;
+            // }
+
+            if (result.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
+            {
+                result.Status = PaymentTransactionNewStatus.Pending;
+            }
+
+            if (result.Status == PaymentTransactionNewStatus.Failed) return result;
+
+            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+
+            result.RecurringToken = _recurringTokenEncoder.Encrypt(new RecurringToken
+            {
+                UserId = response.UserId
+            });
+
+            return result;
         }
 
         private static PaymentBearerDTO GetPaymentBearerDto(PayOnePspBearer payOnePspBearer, PaymentProviderRole role)
@@ -190,7 +198,7 @@ namespace Business.PayOne.Services
             }
         }
 
-        private static void UpdateMandateIfRequired(ExternalPreauthTransactionDTO preauthTransaction, PaymentProviderRole role,
+        private static void UpdateMandateIfRequired(PaymentBearerDTO bearer, PaymentProviderRole role,
             string mandateIdentification, string mandateDateofsignature)
         {
             if (role != PaymentProviderRole.Debit)
@@ -200,13 +208,12 @@ namespace Business.PayOne.Services
 
             if (string.IsNullOrWhiteSpace(mandateIdentification) == false)
             {
-                ((PaymentBearerBankAccountDTO) preauthTransaction.Bearer).MandateReference = mandateIdentification;
+                ((PaymentBearerBankAccountDTO) bearer).MandateReference = mandateIdentification;
             }
 
             if (string.IsNullOrWhiteSpace(mandateDateofsignature) == false)
             {
-                ((PaymentBearerBankAccountDTO) preauthTransaction.Bearer).MandateSignatureDate =
-                    ParsePayOneDate(mandateDateofsignature);
+                ((PaymentBearerBankAccountDTO) bearer).MandateSignatureDate = ParsePayOneDate(mandateDateofsignature);
             }
         }
 
@@ -363,6 +370,60 @@ namespace Business.PayOne.Services
                 "REDIRECT" => PaymentTransactionNewStatus.Pending,
                 _ => PaymentTransactionNewStatus.Failed
             };
+        }
+
+        private async Task<ExternalPaymentTransactionDTO> ProcessCaptureTransactionAsync(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
+        {
+            var settings = GetPspSettings<PayOnePSPSettings>(paymentDto.MerchantSettings);
+            var role = paymentDto.PaymentMeansReference.Role;
+            var request = new Capture(true, settings)
+            {
+                Amount = ((int) (paymentDto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
+                Currency = paymentDto.Currency,
+                Narrative_Text = role == PaymentProviderRole.OnAccount
+                    ? paymentDto.TransactionInvoiceReferenceText
+                    : paymentDto.TransactionReferenceText,
+                TxId = preauthDto.PspTransactionId,
+                Transaction_Param = paymentDto.InvoiceReferenceCode,
+                Due_Time = paymentDto.PlannedExecutionDate.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString()
+            };
+
+            var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
+            var response = new CaptureResponse(restResult.Data);
+
+            _logger.LogInformation(
+                $"Processed PayOne capture payment {response.TxId} for payment transaction {paymentDto.TransactionId}. Status: {response.Status}");
+
+            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(paymentDto, response.TxId); 
+            result.Bearer = preauthDto.Bearer;
+
+            PopulateTransactionStatus(response, result);
+
+            if (result.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
+            {
+                result.Status = PaymentTransactionNewStatus.Pending;
+            }
+
+            if (result.Status == PaymentTransactionNewStatus.Failed) 
+                return result;
+
+            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+            PopulatePspDueDate(result, role, response.Clearing_Date);
+
+            return result;
+        }
+
+        private static void PopulatePspDueDate(ExternalPaymentTransactionDTO dto, PaymentProviderRole role,
+            string responseClearingDate)
+        {
+            if (role == PaymentProviderRole.Debit && !string.IsNullOrEmpty(responseClearingDate))
+            {
+                dto.DueDate = ParsePayOneDate(responseClearingDate);
+            }
+            else
+            {
+                dto.DueDate = null;
+            }
         }
     }
 }

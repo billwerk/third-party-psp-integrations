@@ -9,29 +9,29 @@ namespace Persistence.Services
 {
     public class ServiceBase<T> : IServiceBase<T> where T : class, IDatabaseObject
     {
-        private readonly IMongoContext _db;
+        protected readonly IMongoContext Db;
 
         protected ServiceBase(IMongoContext db)
         {
-            _db = db;
+            Db = db;
         }
 
         public T Create(T item)
         {
-            _db.Insert(item);
+            Db.Insert(item);
             return item;
         }
 
         public void Update(T item)
         {
-            var updated = _db.Update(item);
+            var updated = Db.Update(item);
             if (updated != 1) 
                 throw new Exception($"Failed to update object {item.GetType().Name} {item.Id}");
         }
 
         public T SingleByIdOrDefault(ObjectId id)
         {
-            var results = _db.Find<T>(Query<T>.EQ(p => p.Id, id));
+            var results = Db.Find<T>(Query<T>.EQ(p => p.Id, id));
             return results.SingleOrDefault();
         }
     }
