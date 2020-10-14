@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Business;
@@ -33,6 +33,13 @@ namespace Web.Controllers
         public async Task<ObjectResult> Preauthorize([FromBody] ExternalPreauthRequestDTO dto)
         {
             return BuildResponse(await _paymentService.SendPreauth(dto));
+        }
+
+        [HttpGet]
+        [Route("api/preauth/{id}")]
+        public async Task<ObjectResult> Get(string id)
+        {
+            return BuildResponse(await _paymentService.FetchPreauth(id));
         }
     }
 }

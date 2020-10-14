@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +20,7 @@ namespace Web.Controllers
         }
 
         [HttpGet]
-        public  async Task<ObjectResult> Get(string id)
+        public async Task<ObjectResult> Get(string id)
         {
             return BuildResponse(await _paymentService.FetchPayment(id));
         }

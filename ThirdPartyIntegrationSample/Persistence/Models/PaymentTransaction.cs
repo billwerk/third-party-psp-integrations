@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Billwerk.Payment.SDK.DTO;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
@@ -8,6 +8,8 @@ namespace Persistence.Models
     public class PaymentTransaction : PaymentTransactionBase
     {
         public List<ExternalPaymentChargebackItemDTO> Chargebacks { get; set; }
+
+        public List<ExternalPaymentItemDTO> Payments { get; set; }
 
         // not sure if we want these refund related things here
         // Possible alternatives:

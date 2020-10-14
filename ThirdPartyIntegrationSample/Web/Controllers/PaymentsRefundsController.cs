@@ -1,4 +1,5 @@
-﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
+using System.Threading.Tasks;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,12 @@ namespace Web.Controllers
     [Route("api/payment/{id}/refund")]
     public class PaymentsRefundsController : ApiControllerBase
     {
+        private readonly IPaymentServiceWrapper _paymentService;
+
         [HttpGet]
-        public ExternalRefundTransactionDTO Get(string id)
+        public async Task<ObjectResult> Get(string id)
         {
-            return new ExternalRefundTransactionDTO();
+            return BuildResponse(await _paymentService.FetchRefund(id));
         }
         
         [HttpPost]
@@ -22,8 +25,10 @@ namespace Web.Controllers
             return new ExternalRefundTransactionDTO();
         }
 
-        public PaymentsRefundsController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) : base(paymentServiceMethodsExecutor)
+        public PaymentsRefundsController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor,
+            IPaymentServiceWrapper paymentService) : base(paymentServiceMethodsExecutor)
         {
+            _paymentService = paymentService;
         }
     }
 }
