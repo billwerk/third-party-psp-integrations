@@ -1,4 +1,5 @@
-﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
+﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Persistence.Models;
 
@@ -8,47 +9,27 @@ namespace Business.Helpers
     {
         public static PreauthTransaction ToEntity(this ExternalPreauthTransactionDTO dto)
         {
-            var preauthTransaction = new PreauthTransaction
-            {
-                AuthorizedAmount = dto.RequestedAmount,
-                Currency = dto.Currency,
-                LastUpdated = dto.LastUpdated,
-                RequestedAmount = dto.RequestedAmount,
-                Bearer = dto.Bearer,
-                ExternalTransactionId = dto.TransactionId,
-                PspTransactionId = dto.PspTransactionId,
-                ExpiresAt = dto.ExpiresAt
-            };
+            var preauthTransaction = ToEntity<PreauthTransaction, ExternalPreauthTransactionDTO>(dto);
             
-            preauthTransaction.ForceId();
-
-            preauthTransaction.StatusHistory.Add(dto.Status);
+            preauthTransaction.AuthorizedAmount = dto.AuthorizedAmount;
+            preauthTransaction.Bearer = dto.Bearer;
+            preauthTransaction.ExpiresAt = dto.ExpiresAt;
 
             return preauthTransaction;
         }
-        
+
         public static PaymentTransaction ToEntity(this ExternalPaymentTransactionDTO dto)
         {
-            var paymentTransaction = new PaymentTransaction
-            {
-                Currency = dto.Currency,
-                LastUpdated = dto.LastUpdated,
-                RequestedAmount = dto.RequestedAmount,
-                Bearer = dto.Bearer,
-                ExternalTransactionId = dto.TransactionId,
-                PspTransactionId = dto.PspTransactionId,
-                DueDate = dto.DueDate,
-                RefundableAmount = dto.RefundableAmount,
-                RefundedAmount = dto.RefundedAmount
-            };
-            
-            paymentTransaction.ForceId();
+            var paymentTransaction = ToEntity<PaymentTransaction, ExternalPaymentTransactionDTO>(dto);
 
-            paymentTransaction.StatusHistory.Add(dto.Status);
+            paymentTransaction.Bearer = dto.Bearer;
+            paymentTransaction.DueDate = dto.DueDate;
+            paymentTransaction.RefundableAmount = dto.RefundableAmount;
+            paymentTransaction.RefundedAmount = dto.RefundedAmount;
 
             return paymentTransaction;
         }
-        
+
         public static ExternalPreauthTransactionDTO ToDto(this PreauthTransaction entity)
         {
             var preauthTransaction = new ExternalPreauthTransactionDTO
@@ -66,6 +47,25 @@ namespace Business.Helpers
             };
 
             return preauthTransaction;
+        }
+
+        private static TEntity ToEntity<TEntity, TDto>(this TDto dto) 
+            where TDto : ExternalPaymentTransactionBaseDTO
+            where TEntity : PaymentTransactionBase, new()
+        {
+            var paymentTransaction = new TEntity
+            {
+                Currency = dto.Currency,
+                LastUpdated = dto.LastUpdated,
+                RequestedAmount = dto.RequestedAmount,
+                ExternalTransactionId = dto.TransactionId,
+                PspTransactionId = dto.PspTransactionId,
+            };
+
+            paymentTransaction.ForceId();
+            paymentTransaction.StatusHistory.Add(dto.Status);
+
+            return paymentTransaction;
         }
     }
 }

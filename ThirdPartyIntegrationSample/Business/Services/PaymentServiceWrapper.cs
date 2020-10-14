@@ -39,7 +39,11 @@ namespace Business.Services
 
                 var mappedPaymentTransaction = paymentResult.ToEntity();
                 mappedPaymentTransaction.SequenceNumber = 1;
-                mappedPaymentTransaction.ExternalTransactionId = paymentResult.TransactionId;
+                paymentResult.ExternalTransactionId = mappedPaymentTransaction.Id.ToString();
+                
+                _paymentTransactionService.Create(mappedPaymentTransaction);
+
+                return paymentResult;
             }
 
             return new ExternalPaymentTransactionDTO();
