@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
@@ -8,6 +8,7 @@ namespace Business.Interfaces
 {
     public interface IPaymentServiceWrapper
     {
+        Task<string> HandleWebhookAsync(string requestString);
         Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto);
         Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto);
         Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto);
