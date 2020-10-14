@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
@@ -46,6 +47,9 @@ namespace Business.Services
 
                 var mappedPaymentTransaction = paymentResult.ToEntity();
                 mappedPaymentTransaction.SequenceNumber = 1;
+                mappedPaymentTransaction.MerchantSettings = paymentDto.MerchantSettings;
+                mappedPaymentTransaction.Role = paymentDto.PaymentMeansReference.Role;
+                    
                 paymentResult.ExternalTransactionId = mappedPaymentTransaction.Id.ToString();
                 
                 _paymentTransactionService.Create(mappedPaymentTransaction);
@@ -68,6 +72,9 @@ namespace Business.Services
             var preauthTransaction = preauthResult.ToEntity();
             
             preauthTransaction.SequenceNumber = 0;
+            preauthTransaction.MerchantSettings = dto.MerchantSettings;
+            preauthTransaction.Role = dto.PaymentMeansReference.Role;
+            
             preauthResult.ExternalTransactionId = preauthTransaction.Id.ToString();
 
             _paymentTransactionService.Create(preauthTransaction);
@@ -90,9 +97,22 @@ namespace Business.Services
             throw new System.NotImplementedException();
         }
 
-        public Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
+        public async Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
         {
-            throw new System.NotImplementedException();
+            var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
+            if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
+            {
+                return await _paymentService.SendCancellation(preauthTransaction.ToDto());
+            }
+
+            return new ExternalPaymentCancellationDTO
+            {
+                Error = new ExternalIntegrationErrorDTO
+                {
+                    ErrorMessage = $"The transaction with id {transactionId} hasn't been found."
+                }
+            };
         }
+
     }
 }
