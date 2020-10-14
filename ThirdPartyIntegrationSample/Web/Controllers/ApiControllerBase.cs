@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Business.Interfaces;
 using Core.Rest;
 using Microsoft.AspNetCore.Mvc;
@@ -37,6 +38,18 @@ namespace Web.Controllers
         
         protected ObjectResult BuildResponse<T>(T result)
             where T : ExternalPaymentTransactionBaseDTO
+        {
+            if (result.Error != null)
+            {
+                return BadRequest(result);
+            }
+            else
+            {
+                return Ok(result);
+            }
+        }
+        
+        protected ObjectResult BuildResponse(ExternalPaymentCancellationDTO result)
         {
             if (result.Error != null)
             {

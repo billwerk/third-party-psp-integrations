@@ -1,7 +1,19 @@
-﻿namespace Business.Interfaces
+﻿using System.Threading.Tasks;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
+
+namespace Business.Interfaces
 {
-    public interface IPaymentServiceWrapper : IPaymentService
+    public interface IPaymentServiceWrapper
     {
-        
+        Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto);
+        Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto);
+        Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto);
+        Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId);
+        Task<ExternalRefundTransactionDTO> FetchRefund(string transactionId);
+        Task<ExternalPreauthTransactionDTO> FetchPreauth(string transactionId);
+        public Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId);
     }
 }
