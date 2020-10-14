@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
 using Billwerk.Payment.SDK.Enums;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -21,8 +22,10 @@ namespace Persistence.Models
         public string Currency { get; set; }
         public decimal RequestedAmount { get; set; }
         public DateTime LastUpdated { get; set; }
-        public List<PaymentTransactionNewStatus> StatusHistory { get; set; }
+        public List<MerchantSettingValue> MerchantSettings { get; set; }
         
+        public PaymentProviderRole Role { get; set; }
+        public List<PaymentTransactionNewStatus> StatusHistory { get; set; }
         public int SequenceNumber { get; set; }
 
         [BsonIgnore]

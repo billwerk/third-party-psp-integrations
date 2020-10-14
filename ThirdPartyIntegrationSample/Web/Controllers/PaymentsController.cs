@@ -20,15 +20,15 @@ namespace Web.Controllers
         }
 
         [HttpGet]
-        public ExternalPaymentTransactionDTO Get(string id)
+        public  async Task<ObjectResult> Get(string id)
         {
-            return new ExternalPaymentTransactionDTO();
+            return BuildResponse(await _paymentService.FetchPayment(id));
         }
 
         [HttpPost]
         public async Task<ObjectResult> Pay(ExternalPaymentRequestDTO dto)
         {
-            return BuildResponse(await _paymentService.SendPayment(dto, null));
+            return BuildResponse(await _paymentService.SendPayment(dto));
         }
     }
 }

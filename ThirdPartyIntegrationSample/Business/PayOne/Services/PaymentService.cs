@@ -19,7 +19,6 @@ using Business.PayOne.Model.Requests;
 using Business.PayOne.Model.Responses;
 using Core.Helpers;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 
 namespace Business.PayOne.Services
 {
@@ -41,12 +40,14 @@ namespace Business.PayOne.Services
             _recurringTokenEncoder = recurringTokenEncoder;
         }
 
-        public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
+        public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequest paymentRequest)
         {
-            var isCapture = string.IsNullOrWhiteSpace(paymentDto.PaymentMeansReference.PreauthTransactionId) && preauthDto != null;
+            var isCapture =
+                string.IsNullOrWhiteSpace(paymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId) &&
+                paymentRequest.PreauthRequestDto != null;
             if (isCapture)
             {
-                return await ProcessCaptureTransactionAsync(paymentDto, preauthDto);
+                return await ProcessCaptureTransactionAsync(paymentRequest);
             }
 
             return null;
@@ -72,7 +73,8 @@ namespace Business.PayOne.Services
                 Narrative_Text = role == PaymentProviderRole.OnAccount
                     ? dto.TransactionInvoiceReferenceText
                     : dto.TransactionReferenceText,
-                Reference = Base32.Encode(Encoding.UTF8.GetBytes(dto.TransactionId)).Substring(dto.TransactionId.Length - 20, 19),
+                Reference = Base32.Encode(Encoding.UTF8.GetBytes(dto.TransactionId))
+                    .Substring(dto.TransactionId.Length - 20, 19),
                 Param = dto.TransactionId,
                 PaymentBearer = GetPaymentBearer(tetheredPaymentInformation, role),
                 Customer = GetPayOneCustomer(payer),
@@ -91,9 +93,27 @@ namespace Business.PayOne.Services
             return BuildAndPopulateExternalPreauthTransactionDto(dto, response, tetheredPaymentInformation);
         }
 
-        public Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
+        public async Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto)
         {
-            throw new NotImplementedException();
+            var paymentRequest = new ExternalPaymentRequest
+            {
+                PreauthRequestDto = dto
+            };
+
+            var result = await ProcessCaptureTransactionAsync(paymentRequest);
+            if (result.Status == PaymentTransactionNewStatus.Succeeded)
+            {
+                return new ExternalPaymentCancellationDTO
+                {
+                    CancellationStatus = result.Status.ToString(),
+                    TransactionId = result.TransactionId
+                };
+            }
+
+            return new ExternalPaymentCancellationDTO
+            {
+                Error = result.Error
+            };
         }
 
         public Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId)
@@ -110,7 +130,7 @@ namespace Business.PayOne.Services
         {
             throw new NotImplementedException();
         }
-        
+
         private ExternalPreauthTransactionDTO BuildAndPopulateExternalPreauthTransactionDto(ExternalPreauthRequestDTO dto,
             PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation)
         {
@@ -372,30 +392,35 @@ namespace Business.PayOne.Services
             };
         }
 
-        private async Task<ExternalPaymentTransactionDTO> ProcessCaptureTransactionAsync(ExternalPaymentRequestDTO paymentDto, ExternalPreauthTransactionDTO preauthDto)
+        private async Task<ExternalPaymentTransactionDTO> ProcessCaptureTransactionAsync(ExternalPaymentRequest paymentRequest)
         {
-            var settings = GetPspSettings<PayOnePSPSettings>(paymentDto.MerchantSettings);
-            var role = paymentDto.PaymentMeansReference.Role;
+            var paymentDto = paymentRequest.PaymentRequestDto;
+            var preauthDto = paymentRequest.PreauthRequestDto;
+            var dto = (ExternalPaymentTransactionBaseRequestDTO) paymentDto ?? preauthDto;
+            var settings = GetPspSettings<PayOnePSPSettings>(dto.MerchantSettings);
+            var role = paymentDto?.PaymentMeansReference?.Role ?? preauthDto.PaymentMeansReference.Role;
+            var captureAmount = paymentDto?.RequestedAmount ?? 0M;
             var request = new Capture(true, settings)
             {
-                Amount = ((int) (paymentDto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
-                Currency = paymentDto.Currency,
+                Amount = ((int) (captureAmount * 100)).ToString(CultureInfo.InvariantCulture),
+                Currency = dto.Currency,
                 Narrative_Text = role == PaymentProviderRole.OnAccount
-                    ? paymentDto.TransactionInvoiceReferenceText
-                    : paymentDto.TransactionReferenceText,
-                TxId = preauthDto.PspTransactionId,
-                Transaction_Param = paymentDto.InvoiceReferenceCode,
-                Due_Time = paymentDto.PlannedExecutionDate.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString()
+                    ? preauthDto.TransactionInvoiceReferenceText
+                    : dto.TransactionReferenceText,
+                TxId = paymentRequest.PspTransactionId,
+                Transaction_Param = preauthDto.InvoiceReferenceCode,
+                Due_Time = paymentDto?.PlannedExecutionDate.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString()
             };
 
             var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
             var response = new CaptureResponse(restResult.Data);
 
             _logger.LogInformation(
-                $"Processed PayOne capture payment {response.TxId} for payment transaction {paymentDto.TransactionId}. Status: {response.Status}");
+                $"Processed PayOne capture payment {response.TxId} for payment transaction {paymentDto?.TransactionId ?? preauthDto.TransactionId}. Status: {response.Status}");
 
-            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(paymentDto, response.TxId); 
-            result.Bearer = preauthDto.Bearer;
+            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(paymentDto, response.TxId);
+
+            result.Bearer = paymentRequest.BearerDto;
 
             PopulateTransactionStatus(response, result);
 
@@ -407,7 +432,12 @@ namespace Business.PayOne.Services
             if (result.Status == PaymentTransactionNewStatus.Failed) 
                 return result;
 
-            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+            if (result.Bearer != null)
+            {
+                UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification,
+                    response.Mandate_Dateofsignature);
+            }
+
             PopulatePspDueDate(result, role, response.Clearing_Date);
 
             return result;

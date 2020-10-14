@@ -1,4 +1,5 @@
-﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
+﻿using System.Threading.Tasks;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,23 +10,19 @@ namespace Web.Controllers
     [ApiController]
     public class PaymentsCancellationController : ApiControllerBase
     {
-        private readonly IPaymentServiceMethodsExecutor _paymentServiceMethodsExecutor;
+        private readonly IPaymentServiceWrapper _paymentService;
 
-        public PaymentsCancellationController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) 
+        public PaymentsCancellationController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor, IPaymentServiceWrapper paymentServiceWrapper) 
             : base(paymentServiceMethodsExecutor)
         {
-            _paymentServiceMethodsExecutor = paymentServiceMethodsExecutor;
+            _paymentService = paymentServiceWrapper;
         }
 
         [HttpPost]
         [Route("api/payment/{id}/cancel")]
-        public ExternalPaymentCancellationDTO Cancel(string id)
+        public async Task<ObjectResult> Cancel(string id)
         {
-            ExecutePaymentServiceMethodAsynchronously(x => x.SendCancellation(id));
-            
-            _paymentServiceMethodsExecutor.ExecuteAsynchronously(x => x.SendCancellation(id));
-            
-            return new ExternalPaymentCancellationDTO();
+            return BuildResponse(await _paymentService.SendCancellation(id));
         }
     }
 }

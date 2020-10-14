@@ -30,20 +30,18 @@ namespace Business.Helpers
             return paymentTransaction;
         }
 
-        public static ExternalPreauthTransactionDTO ToDto(this PreauthTransaction entity)
+        public static ExternalPreauthRequestDTO ToDto(this PreauthTransaction entity)
         {
-            var preauthTransaction = new ExternalPreauthTransactionDTO
+            var preauthTransaction = new ExternalPreauthRequestDTO
             {
-                AuthorizedAmount = entity.RequestedAmount,
                 Currency = entity.Currency,
-                LastUpdated = entity.LastUpdated,
                 RequestedAmount = entity.RequestedAmount,
-                Bearer = entity.Bearer,
-                ExternalTransactionId = entity.Id.ToString(),
-                PspTransactionId = entity.PspTransactionId,
-                ExpiresAt = entity.ExpiresAt,
-                Status = entity.Status.Value,
-                TransactionId = entity.ExternalTransactionId
+                TransactionId = entity.ExternalTransactionId,
+                MerchantSettings = entity.MerchantSettings,
+                PaymentMeansReference = new ExternalPaymentMeansReferenceDTO
+                {
+                    Role = entity.Role
+                }
             };
 
             return preauthTransaction;
