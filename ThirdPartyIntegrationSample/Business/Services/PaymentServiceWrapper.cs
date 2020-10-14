@@ -1,15 +1,20 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
+using Billwerk.Payment.SDK.Enums.ExternalIntegration;
 using Billwerk.Payment.SDK.Enums;
 using Business.Helpers;
 using Business.Interfaces;
-using Business.Models;
+using Business.PayOne.Model;
 using MongoDB.Bson;
+using NodaTime;
+using Business.Models;
 using Persistence.Interfaces;
 using Persistence.Models;
 
@@ -291,5 +296,176 @@ namespace Business.Services
         }
 
         #endregion
+
+        public Task<string> HandleWebhookAsync(string requestString)
+        {
+            var result = requestString.Replace("\n", string.Empty);
+            try
+            {
+                var ts = new TransactionStatus(result);
+                var pspTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.TxId); //Todo Double
+                PaymentTransactionBase transaction;
+                if (pspTransaction == null)
+                {
+                    transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
+
+                    if (transaction == null)
+                    {
+                        return null; //Todo
+                    }
+
+                    if (transaction.GetType() == typeof(PreauthTransaction))
+                    {
+                        var paymentTransaction = (PaymentTransaction)_paymentTransactionService.SingleByIdOrDefault(transaction.Id); //Todo SingleByPreauthTransactionId to find capture transaction by preauth
+                        if (paymentTransaction != null)
+                        {
+                            transaction = paymentTransaction;
+                        }
+                    }
+                }
+                else
+                {
+                    var referencedTransaction = pspTransaction; //Todo referenced transaction by SingleHackTransaction
+                    transaction = pspTransaction; //Todo latest transaction by SingleHackTransaction
+                    if (referencedTransaction == null || transaction == null)
+                    {
+                        return null; //Todo
+                    }
+                }
+
+                //Check chargeback fees
+                if (transaction.GetType() == typeof(PaymentTransaction))
+                {
+                    CheckForChargebackFee(ts, (PaymentTransaction)transaction);
+                }
+
+                //Map? 
+                MapPaymentTransactionStatus(ts, transaction);
+
+                if (Int32.TryParse(ts.Sequencenumber, out var sequenceNumber) && sequenceNumber > 0)
+                {
+                    if (sequenceNumber > transaction.SequenceNumber)
+                    {
+                        transaction.SequenceNumber = sequenceNumber;
+                    }
+                    //Todo Billwerk?
+                }
+
+                _paymentTransactionService.Update(transaction);
+
+                //if (status != null)
+                //{
+                //    //Send Webhook to Billwerk
+                //}
+
+                return Task.FromResult("");
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
+        private void CheckForChargebackFee(TransactionStatus status, PaymentTransaction transaction)
+        {
+            var recivable = Decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
+            var fee = recivable - (transaction.RequestedAmount - transaction.RefundedAmount); //Todo HandlingFees
+
+            if ((status.TxAction == "cancelation" || status.TxAction == "debit") && fee > 0m)
+            {
+                //Todo billChargebackFeeAutomatically
+
+                var externalPaymentChargebackItem = new ExternalPaymentChargebackItemDTO
+                {
+                    ExternalItemId = "", //Todo timeStamp, Check webhook
+                    Amount = transaction.RequestedAmount, //Todo check for partial chargebacks
+                    BookingDate = new LocalDate(), //Todo ask Christian, check webhook
+                    Description = "", //Todo check webhook
+                    FeeAmount = fee,
+                    Reason = ExternalPaymentChargebackReason.Unknown, //Todo
+                    PspReason = "Reason" //Todo webhook
+                };
+
+                if (transaction.Chargebacks == null)
+                {
+                    transaction.Chargebacks = new List<ExternalPaymentChargebackItemDTO> { externalPaymentChargebackItem };
+                }
+                else
+                {
+                    transaction.Chargebacks.Add(externalPaymentChargebackItem);
+                }
+            }
+        }
+
+        private void MapPaymentTransactionStatus(TransactionStatus status, PaymentTransactionBase transaction) //Todo recheck
+        {
+            decimal receivable = 0;
+            decimal balance = 0;
+
+            if (!string.IsNullOrWhiteSpace(status.Receivable))
+            {
+                receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
+            }
+
+            if (!string.IsNullOrWhiteSpace(status.Balance))
+            {
+                balance = decimal.Parse(status.Balance, CultureInfo.InvariantCulture);
+            }
+
+            switch (status.TxAction)
+            {
+                case "appointed":
+                case "capture":
+                    // This status should not be relevant for any transaction. Initial Succeeded or PreliminarySucceeded
+                    // is set during actual payment request already so this is redundant
+                    return;
+                case "paid":
+                case "underpaid":
+                    //Todo
+                    decimal targetBalance = 0; //Todo
+
+                    //Statuses
+
+                    break;
+                case "refund":
+                    //refund
+
+                    break;
+                case "cancelation":
+                    // billauto
+
+                    if (string.IsNullOrWhiteSpace(status.FailedCause) == false)
+                    {
+                        var failedCause = status.FailedCause.ToLower();
+
+                        switch (failedCause)
+                        {
+                            //error codes
+                            case "soc":
+                                break;
+                            case "cka":
+                            case "uan":
+                                break;
+                            case "ndd":
+                                break;
+                            case "cb":
+                            case "obj":
+                                break;
+                            case "ret":
+                            case "nelv":
+                            case "ncc":
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+
+                    break;
+                default:
+                    //Don't handle other webhooks
+                    return;
+            }
+            //additional
+        }
     }
 }
