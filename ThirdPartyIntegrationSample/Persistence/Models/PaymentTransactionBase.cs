@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
@@ -10,6 +10,7 @@ namespace Persistence.Models
     [BsonDiscriminator(Required = true)]
     [BsonKnownTypes(typeof(PreauthTransaction))]
     [BsonKnownTypes(typeof(PaymentTransaction))]
+    [BsonKnownTypes(typeof(RefundTransaction))]
     public abstract class PaymentTransactionBase : DbObject
     {
         protected PaymentTransactionBase()

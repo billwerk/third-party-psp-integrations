@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
@@ -20,6 +21,8 @@ namespace Business.Services
         private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IRecurringTokenService _recurringTokenService;
         private readonly IRecurringTokenEncoder<RecurringToken> _recurringTokenEncoder;
+        private const string NotFoundErrorMessage = "Not Found";
+        private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
 
         public PaymentServiceWrapper(IPaymentService paymentService, IPaymentTransactionService paymentTransactionService,
             IRecurringTokenService recurringTokenService, IRecurringTokenEncoder<RecurringToken> recurringTokenEncoder)
@@ -105,17 +108,68 @@ namespace Business.Services
 
         public Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId)
         {
-            throw new System.NotImplementedException();
+            if (String.IsNullOrEmpty(transactionId))
+            {
+                return Task.FromResult(new ExternalPaymentTransactionDTO
+                {
+                    Error = CreateInvalidPreconditionsError()
+                });
+            }
+
+            var transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
+            if (transaction != null && transaction is PaymentTransaction paymentTransaction)
+            {
+                return Task.FromResult(paymentTransaction.ToDto());
+            }
+
+            return Task.FromResult(new ExternalPaymentTransactionDTO
+            {
+                Error = CreateUnmappedError()
+            });
         }
 
         public Task<ExternalRefundTransactionDTO> FetchRefund(string transactionId)
         {
-            throw new System.NotImplementedException();
+            if (String.IsNullOrEmpty(transactionId))
+            {
+                return Task.FromResult(new ExternalRefundTransactionDTO
+                {
+                    Error = CreateInvalidPreconditionsError()
+                });
+            }
+
+            var transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
+            if (transaction != null && transaction is RefundTransaction refundTransaction)
+            {
+                return Task.FromResult(refundTransaction.ToDto());
+            }
+
+            return Task.FromResult(new ExternalRefundTransactionDTO
+            {
+                Error = CreateUnmappedError()
+            });
         }
 
         public Task<ExternalPreauthTransactionDTO> FetchPreauth(string transactionId)
         {
-            throw new System.NotImplementedException();
+            if (String.IsNullOrEmpty(transactionId))
+            {
+                return Task.FromResult(new ExternalPreauthTransactionDTO
+                {
+                    Error = CreateInvalidPreconditionsError()
+                });
+            }
+
+            var transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
+            if (transaction != null && transaction is PreauthTransaction preauthTransaction)
+            {
+                return Task.FromResult(preauthTransaction.ToDto());
+            }
+
+            return Task.FromResult(new ExternalPreauthTransactionDTO
+            {
+                Error = CreateUnmappedError()
+            });
         }
 
         public async Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
@@ -132,6 +186,26 @@ namespace Business.Services
                 {
                     ErrorMessage = $"The transaction with id {transactionId} hasn't been found."
                 }
+            };
+        }
+
+        #region Private methods
+
+        private static ExternalIntegrationErrorDTO CreateUnmappedError()
+        {
+            return new ExternalIntegrationErrorDTO
+            {
+                ErrorCode = PaymentErrorCode.UnmappedError,
+                ErrorMessage = NotFoundErrorMessage
+            };
+        }
+
+        private static ExternalIntegrationErrorDTO CreateInvalidPreconditionsError()
+        {
+            return new ExternalIntegrationErrorDTO
+            {
+                ErrorCode = PaymentErrorCode.InvalidPreconditions,
+                ErrorMessage = InvalidPreconditionsErrorMessage
             };
         }
 

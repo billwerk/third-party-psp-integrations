@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Billwerk.Payment.SDK.DTO;
 
 namespace Persistence.Models
@@ -10,5 +10,7 @@ namespace Persistence.Models
         public DateTimeOffset ExpiresAt { get; set; }
 
         public PaymentBearerDTO Bearer { get; set; }
+
+        public string RecurringToken { get; set; }
     }
 }
