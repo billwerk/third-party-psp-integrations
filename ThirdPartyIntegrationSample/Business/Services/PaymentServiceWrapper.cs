@@ -82,9 +82,34 @@ namespace Business.Services
             return recurringToken.Id.ToString();
         }
 
-        public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
+        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
         {
-            throw new System.NotImplementedException();
+
+            var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
+
+            if (targetTransaction == null)
+            {
+                return new ExternalRefundTransactionDTO
+                {
+                    Error = CreateUnmappedError()
+                };
+            }
+
+            var refundResult = await _paymentService.SendRefund(dto, targetTransaction);
+
+            var refundTransaction = refundResult.ToEntity();
+
+            //Todo is it necessary here?
+            refundTransaction.SequenceNumber = targetTransaction.SequenceNumber + 1;
+
+            refundTransaction.MerchantSettings = dto.MerchantSettings;
+            refundTransaction.Role = targetTransaction.Role;
+
+            refundResult.ExternalTransactionId = refundTransaction.Id.ToString();
+
+            _paymentTransactionService.Create(refundTransaction);
+
+            return refundResult;
         }
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)

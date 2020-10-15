@@ -31,6 +31,15 @@ namespace Business.Helpers
             return paymentTransaction;
         }
 
+        public static RefundTransaction ToEntity(this ExternalRefundTransactionDTO dto)
+        {
+            var refundTransaction = ToEntity<RefundTransaction, ExternalRefundTransactionDTO>(dto);
+
+            refundTransaction.Refunds = dto.Refunds;
+
+            return refundTransaction;
+        }
+
         public static ExternalPreauthRequestDTO ToRequestDto(this PreauthTransaction entity)
         {
             var preauthTransaction = new ExternalPreauthRequestDTO

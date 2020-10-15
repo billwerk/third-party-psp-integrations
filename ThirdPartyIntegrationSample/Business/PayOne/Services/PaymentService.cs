@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text;
@@ -54,9 +54,29 @@ namespace Business.PayOne.Services
             return await ProcessTransaction(paymentRequest);
         }
 
-        public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
+        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto, PaymentTransactionBase targetTransaction)
         {
-            throw new NotImplementedException();
+            var settings = GetPspSettings<PayOnePSPSettings>(dto.MerchantSettings);
+            var sequenceNumber = targetTransaction.SequenceNumber + 1;
+            var refundReference = sequenceNumber.ToString(CultureInfo.InstalledUICulture);
+            //Todo is Initial Payment
+            var request = new Refund(true, settings)
+            {
+                Amount = ((int)(dto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
+                Currency = dto.Currency,
+                Narrative_Text = refundReference,
+                SequenceNumber = sequenceNumber.ToString(CultureInfo.InvariantCulture),
+                TxId = targetTransaction.PspTransactionId,
+                Transaction_Param = dto.InvoiceReferenceCode
+            };
+
+            var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
+            var response = new RefundResponse(restResult.Data);
+
+            _logger.LogInformation(
+                $"Processed PayOne refund {response.TxId} for payment transaction {dto.TransactionId}. Status: {response.Status}");
+
+            return BuildAndPopulateExternalRefundTransactionDto(dto, response);
         }
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
@@ -173,6 +193,15 @@ namespace Business.PayOne.Services
             UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
 
             PopulateRecurringToken(response, tetheredPaymentInformation, recurringToken, result);
+
+            return result;
+        }
+
+        private ExternalRefundTransactionDTO BuildAndPopulateExternalRefundTransactionDto(ExternalRefundRequestDTO dto,
+            RefundResponse response)
+        {
+            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalRefundTransactionDTO>(dto, response.TxId);
+            PopulateTransactionStatus(response, result);
 
             return result;
         }
