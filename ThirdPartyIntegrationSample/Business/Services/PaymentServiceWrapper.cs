@@ -77,9 +77,53 @@ namespace Business.Services
             return paymentResult.PaymentDto;
         }
 
-        public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
+        private string TransformAndUpdateRecurringToken(string recurringTokenHash)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(recurringTokenHash))
+            {
+                return null;
+            }
+
+            var recurringToken = _recurringTokenEncoder.Decrypt(recurringTokenHash);
+            if (recurringToken.Id == ObjectId.Empty)
+            {
+                _recurringTokenService.Create(recurringToken);
+            }
+            else
+            {
+                _recurringTokenService.Update(recurringToken);
+            }
+
+            return recurringToken.Id.ToString();
+        }
+
+        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
+        {
+            var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
+
+            if (targetTransaction == null)
+            {
+                return new ExternalRefundTransactionDTO
+                {
+                    Error = CreateUnmappedError()
+                };
+            }
+
+            var refundResult = await _paymentService.SendRefund(dto, targetTransaction);
+
+            var refundTransaction = refundResult.ToEntity();
+
+            //Todo is it necessary here?
+            refundTransaction.SequenceNumber = targetTransaction.SequenceNumber + 1;
+
+            refundTransaction.MerchantSettings = dto.MerchantSettings;
+            refundTransaction.Role = targetTransaction.Role;
+
+            refundResult.ExternalTransactionId = refundTransaction.Id.ToString();
+
+            _paymentTransactionService.Create(refundTransaction);
+
+            return refundResult;
         }
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
