@@ -177,7 +177,7 @@ namespace Business.Services
             var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
             if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
             {
-                return await _paymentService.SendCancellation(preauthTransaction.ToDto());
+                return await _paymentService.SendCancellation(preauthTransaction.ToRequestDto());
             }
 
             return new ExternalPaymentCancellationDTO
@@ -256,7 +256,7 @@ namespace Business.Services
                     }
                 };
 
-            externalPaymentRequest.PreauthRequestDto = preauthTransaction.ToDto();
+            externalPaymentRequest.PreauthRequestDto = preauthTransaction.ToRequestDto();
             externalPaymentRequest.BearerDto = preauthTransaction.Bearer;
             externalPaymentRequest.PspTransactionId = preauthTransaction.PspTransactionId;
 
@@ -264,5 +264,7 @@ namespace Business.Services
 
             return null;
         }
+
+        #endregion
     }
 }
