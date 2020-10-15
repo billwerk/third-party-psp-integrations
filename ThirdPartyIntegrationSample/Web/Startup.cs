@@ -76,6 +76,7 @@ namespace Web {
             services.AddSingleton<IHttpContentFactory, PayOneFormUrlEncodedContentFactory>();
             services.AddSingleton<IHttpClientHandlerFactory, HttpClientHandlerFactory>();
             services.AddScoped<IRecurringTokenEncoder<RecurringToken>, PayOneRecurringTokenEncoder>();
+            services.AddScoped<IRecurringTokenService, RecurringTokenService>();
             
             // Add Hangfire services.
             services.AddHangfire(configuration => configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)

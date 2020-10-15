@@ -41,7 +41,7 @@ namespace Business.PayOne.Services
             _recurringTokenEncoder = recurringTokenEncoder;
         }
 
-        public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequest paymentRequest)
+        public async Task<ExternalPaymentResponse> SendPayment(ExternalPaymentRequest paymentRequest)
         {
             var isCapture =
                 string.IsNullOrWhiteSpace(paymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId) &&
@@ -66,13 +66,14 @@ namespace Business.PayOne.Services
             var settings = GetPspSettings<PayOnePSPSettings>(dto.MerchantSettings);
             PayOnePspBearer tetheredPaymentInformation;
             string userId = null;
+            RecurringToken recurringToken = null;
             if (initialPayment)
             {
                 tetheredPaymentInformation = _initialTokenDecoder.Decode(dto.PaymentMeansReference.InitialToken);
             }
             else
             {
-                var recurringToken = _recurringTokenEncoder.Decrypt(dto.PaymentMeansReference.RecurringToken);
+                recurringToken = _recurringTokenEncoder.Decrypt(dto.PaymentMeansReference.RecurringToken);
                 tetheredPaymentInformation = recurringToken.PspBearer as PayOnePspBearer;
                 userId = recurringToken.UserId;
             }
@@ -102,7 +103,7 @@ namespace Business.PayOne.Services
             _logger.LogInformation(
                 $"Processed PayOne Preapproval {response.TxId} for payment transaction {dto.TransactionId}. Status: {response.Status}");
 
-            return BuildAndPopulateExternalPreauthTransactionDto(dto, response, tetheredPaymentInformation);
+            return BuildAndPopulateExternalPreauthTransactionDto(dto, response, tetheredPaymentInformation, recurringToken);
         }
 
         public async Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto)
@@ -113,18 +114,18 @@ namespace Business.PayOne.Services
             };
 
             var result = await ProcessCaptureTransactionAsync(paymentRequest);
-            if (result.Status == PaymentTransactionNewStatus.Succeeded)
+            if (result.PaymentDto.Status == PaymentTransactionNewStatus.Succeeded)
             {
                 return new ExternalPaymentCancellationDTO
                 {
-                    CancellationStatus = result.Status.ToString(),
-                    TransactionId = result.TransactionId
+                    CancellationStatus = result.PaymentDto.Status.ToString(),
+                    TransactionId = result.PaymentDto.TransactionId
                 };
             }
 
             return new ExternalPaymentCancellationDTO
             {
-                Error = result.Error
+                Error = result.PaymentDto.Error
             };
         }
 
@@ -144,7 +145,7 @@ namespace Business.PayOne.Services
         }
 
         private ExternalPreauthTransactionDTO BuildAndPopulateExternalPreauthTransactionDto(ExternalPreauthRequestDTO dto,
-            PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation)
+            PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation, RecurringToken recurringToken)
         {
             var role = dto.PaymentMeansReference.Role;
             var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPreauthTransactionDTO>(dto, response.TxId);
@@ -171,14 +172,20 @@ namespace Business.PayOne.Services
 
             UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
 
-            result.RecurringToken = _recurringTokenEncoder.Encrypt(new RecurringToken
-            {
-                UserId = response.UserId,
-                PaymentBearer = result.Bearer,
-                PspBearer = tetheredPaymentInformation
-            });
+            PopulateRecurringToken(response, tetheredPaymentInformation, recurringToken, result);
 
             return result;
+        }
+
+        private void PopulateRecurringToken(PreauthorizationResponse response, PspBearer tetheredPaymentInformation,
+            RecurringToken recurringToken, ExternalPreauthTransactionDTO result)
+        {
+            recurringToken ??= new RecurringToken();
+            recurringToken.UserId = response.UserId;
+            recurringToken.PaymentBearer = result.Bearer;
+            recurringToken.PspBearer = tetheredPaymentInformation;
+
+            result.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
         }
 
         private static PaymentBearerDTO GetPaymentBearerDto(PayOnePspBearer payOnePspBearer, PaymentProviderRole role)
@@ -405,7 +412,7 @@ namespace Business.PayOne.Services
             };
         }
 
-        private async Task<ExternalPaymentTransactionDTO> ProcessCaptureTransactionAsync(ExternalPaymentRequest paymentRequest)
+        private async Task<ExternalPaymentResponse> ProcessCaptureTransactionAsync(ExternalPaymentRequest paymentRequest)
         {
             var paymentDto = paymentRequest.PaymentRequestDto;
             var preauthDto = paymentRequest.PreauthRequestDto;
@@ -442,20 +449,22 @@ namespace Business.PayOne.Services
                 result.Status = PaymentTransactionNewStatus.Pending;
             }
 
-            if (result.Status == PaymentTransactionNewStatus.Failed) return result;
+            var captureResult = new ExternalPaymentResponse(result);
+            if (result.Status == PaymentTransactionNewStatus.Failed) 
+                return captureResult;
 
-            if (result.Bearer != null)
+            if (captureResult.PaymentDto.Bearer != null)
             {
-                UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification,
+                UpdateMandateIfRequired(captureResult.PaymentDto.Bearer, role, response.Mandate_Identification,
                     response.Mandate_Dateofsignature);
             }
 
-            PopulatePspDueDate(result, role, response.Clearing_Date);
+            PopulatePspDueDate(captureResult.PaymentDto, role, response.Clearing_Date);
 
-            return result;
+            return captureResult;
         }
 
-        private async Task<ExternalPaymentTransactionDTO> ProcessTransaction(ExternalPaymentRequest paymentRequest)
+        private async Task<ExternalPaymentResponse> ProcessTransaction(ExternalPaymentRequest paymentRequest)
         {
             var settings = GetPspSettings<PayOnePSPSettings>(paymentRequest.PaymentRequestDto.MerchantSettings);
             var paymentDto = paymentRequest.PaymentRequestDto;
@@ -489,7 +498,7 @@ namespace Business.PayOne.Services
 
             var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(paymentDto, response.TxId);
 
-            result.Bearer = paymentRequest.BearerDto;
+            result.Bearer = recurringToken.PaymentBearer;
 
             PopulateTransactionStatus(response, result);
 
@@ -498,20 +507,22 @@ namespace Business.PayOne.Services
                 result.Status = PaymentTransactionNewStatus.Pending;
             }
 
-            if (result.Status == PaymentTransactionNewStatus.Failed) return result;
+            var recurringResult = new ExternalPaymentResponse(result);
+            
+            if (result.Status == PaymentTransactionNewStatus.Failed) 
+                return recurringResult;
 
-            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+            UpdateMandateIfRequired(recurringResult.PaymentDto.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
 
-            PopulatePspDueDate(result, role, response.Clearing_Date);
+            PopulatePspDueDate(recurringResult.PaymentDto, role, response.Clearing_Date);
 
-            if (response.UserId != recurringToken.UserId)
-            {
-                recurringToken.UserId = response.UserId;
-                //ToDo: Need to discuss
-                //result.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
-            }
+            if (response.UserId == recurringToken.UserId) 
+                return recurringResult;
+            
+            recurringToken.UserId = response.UserId;
+            recurringResult.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
 
-            return result;
+            return recurringResult;
         }
 
         private static void PopulatePspDueDate(ExternalPaymentTransactionDTO dto, PaymentProviderRole role,
