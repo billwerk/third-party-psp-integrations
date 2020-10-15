@@ -4,9 +4,11 @@ using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
+using Billwerk.Payment.SDK.Enums;
 using Business.Helpers;
 using Business.Interfaces;
 using Business.Models;
+using MongoDB.Bson;
 using Persistence.Interfaces;
 using Persistence.Models;
 
@@ -16,11 +18,16 @@ namespace Business.Services
     {
         private readonly IPaymentService _paymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
+        private readonly IRecurringTokenService _recurringTokenService;
+        private readonly IRecurringTokenEncoder<RecurringToken> _recurringTokenEncoder;
 
-        public PaymentServiceWrapper(IPaymentService paymentService, IPaymentTransactionService paymentTransactionService)
+        public PaymentServiceWrapper(IPaymentService paymentService, IPaymentTransactionService paymentTransactionService,
+            IRecurringTokenService recurringTokenService, IRecurringTokenEncoder<RecurringToken> recurringTokenEncoder)
         {
             _paymentService = paymentService;
             _paymentTransactionService = paymentTransactionService;
+            _recurringTokenService = recurringTokenService;
+            _recurringTokenEncoder = recurringTokenEncoder;
         }
 
         public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto)
@@ -29,35 +36,47 @@ namespace Business.Services
             {
                 PaymentRequestDto = paymentDto
             };
-            
-            if (!string.IsNullOrWhiteSpace(paymentDto.PaymentMeansReference.PreauthTransactionId))
+
+            var resultOfPopulation = TryToPopulatePreauthRequestDto(externalPaymentRequest, out var sequenceNumber);
+            if (resultOfPopulation != null) return resultOfPopulation;
+
+            resultOfPopulation = TryToPopulateRecurringToken(externalPaymentRequest);
+            if (resultOfPopulation != null) return resultOfPopulation;
+
+            var paymentResult = await _paymentService.SendPayment(externalPaymentRequest);
+
+            var mappedPaymentTransaction = paymentResult.PaymentDto.ToEntity();
+            mappedPaymentTransaction.SequenceNumber = sequenceNumber;
+            mappedPaymentTransaction.MerchantSettings = paymentDto.MerchantSettings;
+            mappedPaymentTransaction.Role = paymentDto.PaymentMeansReference.Role;
+
+            paymentResult.PaymentDto.ExternalTransactionId = mappedPaymentTransaction.Id.ToString();
+
+            _paymentTransactionService.Create(mappedPaymentTransaction);
+
+            TransformAndUpdateRecurringToken(paymentResult.RecurringToken);
+
+            return paymentResult.PaymentDto;
+        }
+
+        private string TransformAndUpdateRecurringToken(string recurringTokenHash)
+        {
+            if (string.IsNullOrWhiteSpace(recurringTokenHash))
             {
-                var paymentTransaction =
-                    _paymentTransactionService.SingleByExternalTransactionIdOrDefault(paymentDto.PaymentMeansReference
-                        .PreauthTransactionId);
-
-                if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
-                {
-                    externalPaymentRequest.PreauthRequestDto = preauthTransaction.ToDto();
-                    externalPaymentRequest.BearerDto = preauthTransaction.Bearer;
-                    externalPaymentRequest.PspTransactionId = preauthTransaction.PspTransactionId;
-                }
-
-                var paymentResult = await _paymentService.SendPayment(externalPaymentRequest);
-
-                var mappedPaymentTransaction = paymentResult.ToEntity();
-                mappedPaymentTransaction.SequenceNumber = 1;
-                mappedPaymentTransaction.MerchantSettings = paymentDto.MerchantSettings;
-                mappedPaymentTransaction.Role = paymentDto.PaymentMeansReference.Role;
-                    
-                paymentResult.ExternalTransactionId = mappedPaymentTransaction.Id.ToString();
-                
-                _paymentTransactionService.Create(mappedPaymentTransaction);
-
-                return paymentResult;
+                return null;
             }
 
-            return new ExternalPaymentTransactionDTO();
+            var recurringToken = _recurringTokenEncoder.Decrypt(recurringTokenHash);
+            if (recurringToken.Id == ObjectId.Empty)
+            {
+                _recurringTokenService.Create(recurringToken);
+            }
+            else
+            {
+                _recurringTokenService.Update(recurringToken);
+            }
+
+            return recurringToken.Id.ToString();
         }
 
         public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
@@ -70,12 +89,14 @@ namespace Business.Services
             var preauthResult = await _paymentService.SendPreauth(dto);
 
             var preauthTransaction = preauthResult.ToEntity();
-            
+
             preauthTransaction.SequenceNumber = 0;
             preauthTransaction.MerchantSettings = dto.MerchantSettings;
             preauthTransaction.Role = dto.PaymentMeansReference.Role;
-            
+
             preauthResult.ExternalTransactionId = preauthTransaction.Id.ToString();
+            
+            preauthResult.RecurringToken = TransformAndUpdateRecurringToken(preauthResult.RecurringToken);
 
             _paymentTransactionService.Create(preauthTransaction);
 
@@ -114,5 +135,60 @@ namespace Business.Services
             };
         }
 
+        private ExternalPaymentTransactionDTO TryToPopulateRecurringToken(ExternalPaymentRequest externalPaymentRequest)
+        {
+            if (string.IsNullOrWhiteSpace(externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken))
+                return null;
+
+            var recurringToken = _recurringTokenService.SingleByIdOrDefault(
+                ObjectId.Parse(externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken));
+            if (recurringToken == null)
+            {
+                return new ExternalPaymentTransactionDTO
+                {
+                    Error = new ExternalIntegrationErrorDTO
+                    {
+                        ErrorCode = PaymentErrorCode.InvalidPreconditions,
+                        ErrorMessage = "Unknown recurringToken"
+                    }
+                };
+            }
+
+            externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken =
+                _recurringTokenEncoder.Encrypt(recurringToken);
+
+            return null;
+        }
+
+        private ExternalPaymentTransactionDTO TryToPopulatePreauthRequestDto(ExternalPaymentRequest externalPaymentRequest,
+            out int sequenceNumber)
+        {
+            sequenceNumber = 0;
+
+            if (string.IsNullOrWhiteSpace(externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId))
+                return null;
+
+            var paymentTransaction =
+                _paymentTransactionService.SingleByExternalTransactionIdOrDefault(externalPaymentRequest.PaymentRequestDto
+                    .PaymentMeansReference.PreauthTransactionId);
+
+            if (paymentTransaction == null || !(paymentTransaction is PreauthTransaction preauthTransaction))
+                return new ExternalPaymentTransactionDTO
+                {
+                    Error = new ExternalIntegrationErrorDTO
+                    {
+                        ErrorCode = PaymentErrorCode.InvalidPreconditions,
+                        ErrorMessage = "Unknown recurringToken"
+                    }
+                };
+
+            externalPaymentRequest.PreauthRequestDto = preauthTransaction.ToDto();
+            externalPaymentRequest.BearerDto = preauthTransaction.Bearer;
+            externalPaymentRequest.PspTransactionId = preauthTransaction.PspTransactionId;
+
+            sequenceNumber = 1;
+
+            return null;
+        }
     }
 }
