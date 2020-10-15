@@ -19,6 +19,7 @@ using Business.PayOne.Model.Requests;
 using Business.PayOne.Model.Responses;
 using Core.Helpers;
 using Microsoft.Extensions.Logging;
+using Persistence.Models;
 
 namespace Business.PayOne.Services
 {
@@ -50,7 +51,7 @@ namespace Business.PayOne.Services
                 return await ProcessCaptureTransactionAsync(paymentRequest);
             }
 
-            return null;
+            return await ProcessTransaction(paymentRequest);
         }
 
         public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
@@ -63,7 +64,19 @@ namespace Business.PayOne.Services
             var payer = dto.PayerData;
             var initialPayment = !string.IsNullOrWhiteSpace(dto.PaymentMeansReference.InitialToken);
             var settings = GetPspSettings<PayOnePSPSettings>(dto.MerchantSettings);
-            var tetheredPaymentInformation = _initialTokenDecoder.Decode(dto.PaymentMeansReference.InitialToken);
+            PayOnePspBearer tetheredPaymentInformation;
+            string userId = null;
+            if (initialPayment)
+            {
+                tetheredPaymentInformation = _initialTokenDecoder.Decode(dto.PaymentMeansReference.InitialToken);
+            }
+            else
+            {
+                var recurringToken = _recurringTokenEncoder.Decrypt(dto.PaymentMeansReference.RecurringToken);
+                tetheredPaymentInformation = recurringToken.PspBearer as PayOnePspBearer;
+                userId = recurringToken.UserId;
+            }
+            
             var role = dto.PaymentMeansReference.Role;
             var request = new Preauthorization(initialPayment, settings)
             {
@@ -73,11 +86,10 @@ namespace Business.PayOne.Services
                 Narrative_Text = role == PaymentProviderRole.OnAccount
                     ? dto.TransactionInvoiceReferenceText
                     : dto.TransactionReferenceText,
-                Reference = Base32.Encode(Encoding.UTF8.GetBytes(dto.TransactionId))
-                    .Substring(dto.TransactionId.Length - 20, 19),
+                Reference = BuildReference(dto.TransactionId),
                 Param = dto.TransactionId,
                 PaymentBearer = GetPaymentBearer(tetheredPaymentInformation, role),
-                Customer = GetPayOneCustomer(payer),
+                Customer = GetPayOneCustomer(payer, userId),
                 SuccessUrl = dto.PaymentMeansReference.ReturnUrl,
                 ErrorUrl = dto.PaymentMeansReference.ReturnUrl,
                 BackUrl = dto.PaymentMeansReference.ReturnUrl,
@@ -161,7 +173,9 @@ namespace Business.PayOne.Services
 
             result.RecurringToken = _recurringTokenEncoder.Encrypt(new RecurringToken
             {
-                UserId = response.UserId
+                UserId = response.UserId,
+                PaymentBearer = result.Bearer,
+                PspBearer = tetheredPaymentInformation
             });
 
             return result;
@@ -172,7 +186,7 @@ namespace Business.PayOne.Services
             switch (role)
             {
                 case PaymentProviderRole.CreditCard:
-                    return new PaymentBearerCreditCardDTO()
+                    return new PaymentBearerCreditCardDTO
                     {
                         Holder = payOnePspBearer.Holder,
                         CardType = ConvertToLongCardType(payOnePspBearer.CardType),
@@ -283,15 +297,14 @@ namespace Business.PayOne.Services
             };
         }
 
-        private static Customer GetPayOneCustomer(PayerDataDTO payer)
+        private static Customer GetPayOneCustomer(PayerDataDTO payer, string pspUserId)
         {
             var poCustomer = new Customer
             {
                 FirstName = payer.FirstName,
                 LastName = payer.LastName,
                 Company = payer.CompanyName,
-                //ToDo: Populate later
-                //UserId = customerSettings?.PSPUserId
+                UserId = pspUserId
             };
 
             var address = payer.Address;
@@ -409,7 +422,7 @@ namespace Business.PayOne.Services
                     : dto.TransactionReferenceText,
                 TxId = paymentRequest.PspTransactionId,
                 Transaction_Param = preauthDto.InvoiceReferenceCode,
-                Due_Time = paymentDto?.PlannedExecutionDate.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString()
+                Due_Time = GetDueTime(paymentDto)
             };
 
             var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
@@ -429,8 +442,7 @@ namespace Business.PayOne.Services
                 result.Status = PaymentTransactionNewStatus.Pending;
             }
 
-            if (result.Status == PaymentTransactionNewStatus.Failed) 
-                return result;
+            if (result.Status == PaymentTransactionNewStatus.Failed) return result;
 
             if (result.Bearer != null)
             {
@@ -439,6 +451,65 @@ namespace Business.PayOne.Services
             }
 
             PopulatePspDueDate(result, role, response.Clearing_Date);
+
+            return result;
+        }
+
+        private async Task<ExternalPaymentTransactionDTO> ProcessTransaction(ExternalPaymentRequest paymentRequest)
+        {
+            var settings = GetPspSettings<PayOnePSPSettings>(paymentRequest.PaymentRequestDto.MerchantSettings);
+            var paymentDto = paymentRequest.PaymentRequestDto;
+            var role = paymentDto.PaymentMeansReference.Role;
+            var recurringToken = _recurringTokenEncoder.Decrypt(paymentDto.PaymentMeansReference.RecurringToken);
+            var request = new Authorization(false, settings)
+            {
+                Amount = ((int) (paymentDto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
+                Currency = paymentDto.Currency,
+                ClearingType = GetClearingType(role),
+                Narrative_Text = role == PaymentProviderRole.OnAccount
+                    ? paymentDto.TransactionInvoiceReferenceText
+                    : paymentDto.TransactionReferenceText,
+                Reference = BuildReference(paymentDto.TransactionId),
+                Param = paymentDto.TransactionId,
+                Transaction_Param = paymentDto.InvoiceReferenceCode,
+                PaymentBearer = GetPaymentBearer(recurringToken.PspBearer as PayOnePspBearer, role),
+                Customer = GetPayOneCustomer(paymentDto.PayerData, recurringToken.UserId),
+                SuccessUrl = paymentDto.PaymentMeansReference.ReturnUrl,
+                ErrorUrl = paymentDto.PaymentMeansReference.ReturnUrl,
+                BackUrl = paymentDto.PaymentMeansReference.ReturnUrl,
+                ECommerceMode = "internet",
+                Due_Time = GetDueTime(paymentDto)
+            };
+
+            var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
+            var response = new AuthorizationResponse(restResult.Data);
+
+            _logger.LogInformation(
+                $"Processed PayOne payment {response.TxId} for payment transaction {paymentDto.TransactionId}. Status: {response.Status}");
+
+            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(paymentDto, response.TxId);
+
+            result.Bearer = paymentRequest.BearerDto;
+
+            PopulateTransactionStatus(response, result);
+
+            if (result.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
+            {
+                result.Status = PaymentTransactionNewStatus.Pending;
+            }
+
+            if (result.Status == PaymentTransactionNewStatus.Failed) return result;
+
+            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+
+            PopulatePspDueDate(result, role, response.Clearing_Date);
+
+            if (response.UserId != recurringToken.UserId)
+            {
+                recurringToken.UserId = response.UserId;
+                //ToDo: Need to discuss
+                //result.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
+            }
 
             return result;
         }
@@ -454,6 +525,16 @@ namespace Business.PayOne.Services
             {
                 dto.DueDate = null;
             }
+        }
+
+        private static string GetDueTime(ExternalPaymentRequestDTO paymentDto)
+        {
+            return paymentDto?.PlannedExecutionDate.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString();
+        }
+
+        private static string BuildReference(string transactionId)
+        {
+            return Base32.Encode(Encoding.UTF8.GetBytes(transactionId)).Substring(transactionId.Length - 20, 19);
         }
     }
 }

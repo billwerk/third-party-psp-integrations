@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

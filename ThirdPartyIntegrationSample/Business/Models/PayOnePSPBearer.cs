@@ -1,8 +1,9 @@
 ﻿using System;
+using Persistence.Models;
 
 namespace Business.Models
 {
-    public class PayOnePspBearer
+    public class PayOnePspBearer : PspBearer
     {
         public int ExpiryMonth { get; set; }
 

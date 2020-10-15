@@ -1,6 +1,6 @@
 ﻿using Business.Interfaces;
-using Business.PayOne.Model;
 using Business.Services;
+using Persistence.Models;
 
 namespace Business.PayOne.Services
 {
