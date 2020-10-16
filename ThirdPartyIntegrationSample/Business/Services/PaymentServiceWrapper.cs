@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -15,6 +14,8 @@ using Business.PayOne.Model;
 using MongoDB.Bson;
 using NodaTime;
 using Business.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Persistence.Interfaces;
 using Persistence.Models;
 
@@ -22,20 +23,24 @@ namespace Business.Services
 {
     public class PaymentServiceWrapper : IPaymentServiceWrapper
     {
+        private const string NotFoundErrorMessage = "Not Found";
+        private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
+
         private readonly IPaymentService _paymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IRecurringTokenService _recurringTokenService;
         private readonly IRecurringTokenEncoder<RecurringToken> _recurringTokenEncoder;
-        private const string NotFoundErrorMessage = "Not Found";
-        private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
+        private readonly ILogger<PaymentServiceWrapper> _logger;
 
         public PaymentServiceWrapper(IPaymentService paymentService, IPaymentTransactionService paymentTransactionService,
-            IRecurringTokenService recurringTokenService, IRecurringTokenEncoder<RecurringToken> recurringTokenEncoder)
+            IRecurringTokenService recurringTokenService, IRecurringTokenEncoder<RecurringToken> recurringTokenEncoder,
+            ILogger<PaymentServiceWrapper> logger)
         {
             _paymentService = paymentService;
             _paymentTransactionService = paymentTransactionService;
             _recurringTokenService = recurringTokenService;
             _recurringTokenEncoder = recurringTokenEncoder;
+            _logger = logger;
         }
 
         public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto)
@@ -67,54 +72,9 @@ namespace Business.Services
             return paymentResult.PaymentDto;
         }
 
-        private string TransformAndUpdateRecurringToken(string recurringTokenHash)
+        public Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
         {
-            if (string.IsNullOrWhiteSpace(recurringTokenHash))
-            {
-                return null;
-            }
-
-            var recurringToken = _recurringTokenEncoder.Decrypt(recurringTokenHash);
-            if (recurringToken.Id == ObjectId.Empty)
-            {
-                _recurringTokenService.Create(recurringToken);
-            }
-            else
-            {
-                _recurringTokenService.Update(recurringToken);
-            }
-
-            return recurringToken.Id.ToString();
-        }
-
-        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
-        {
-
-            var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
-
-            if (targetTransaction == null)
-            {
-                return new ExternalRefundTransactionDTO
-                {
-                    Error = CreateUnmappedError()
-                };
-            }
-
-            var refundResult = await _paymentService.SendRefund(dto, targetTransaction);
-
-            var refundTransaction = refundResult.ToEntity();
-
-            //Todo is it necessary here?
-            refundTransaction.SequenceNumber = targetTransaction.SequenceNumber + 1;
-
-            refundTransaction.MerchantSettings = dto.MerchantSettings;
-            refundTransaction.Role = targetTransaction.Role;
-
-            refundResult.ExternalTransactionId = refundTransaction.Id.ToString();
-
-            _paymentTransactionService.Create(refundTransaction);
-
-            return refundResult;
+            throw new System.NotImplementedException();
         }
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
@@ -128,7 +88,7 @@ namespace Business.Services
             preauthTransaction.Role = dto.PaymentMeansReference.Role;
 
             preauthResult.ExternalTransactionId = preauthTransaction.Id.ToString();
-            
+
             preauthResult.RecurringToken = TransformAndUpdateRecurringToken(preauthResult.RecurringToken);
 
             _paymentTransactionService.Create(preauthTransaction);
@@ -138,7 +98,7 @@ namespace Business.Services
 
         public Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId)
         {
-            if (String.IsNullOrEmpty(transactionId))
+            if (string.IsNullOrEmpty(transactionId))
             {
                 return Task.FromResult(new ExternalPaymentTransactionDTO
                 {
@@ -160,7 +120,7 @@ namespace Business.Services
 
         public Task<ExternalRefundTransactionDTO> FetchRefund(string transactionId)
         {
-            if (String.IsNullOrEmpty(transactionId))
+            if (string.IsNullOrEmpty(transactionId))
             {
                 return Task.FromResult(new ExternalRefundTransactionDTO
                 {
@@ -182,7 +142,7 @@ namespace Business.Services
 
         public Task<ExternalPreauthTransactionDTO> FetchPreauth(string transactionId)
         {
-            if (String.IsNullOrEmpty(transactionId))
+            if (string.IsNullOrEmpty(transactionId))
             {
                 return Task.FromResult(new ExternalPreauthTransactionDTO
                 {
@@ -219,7 +179,104 @@ namespace Business.Services
             };
         }
 
-        #region Private methods
+        public async Task<ObjectResult> HandleWebhookAsync(string requestString)
+        {
+            // var result = requestString.Replace("\n", string.Empty);
+            // try
+            // {
+            //     var ts = new TransactionStatus(result);
+            //
+            //     _logger.LogDebug($"PayOne: provider transaction id {ts.TxId}, status {ts.TxAction}");
+            //
+            //     var pspTransaction = _paymentTransactionService.SinglePspTransactionByProviderTransactionId(ts.TxId);
+            //
+            //     PaymentTransaction paymentTransaction;
+            //     HttpResponseMessage response;
+            //
+            //     if (pspTransaction == null)
+            //     {
+            //         paymentTransaction = _paymentTransactionService.SingleByIdOrDefaultUnauthorized(ts.Param);
+            //
+            //         if (paymentTransaction == null)
+            //         {
+            //             _logger.LogWarning($"PayOne: provider transaction not found (id={ts.TxId},our reference={ts.Param}). Probably it is a transaction of a different system");
+            //
+            //             // Make sure we don't get this webhook again
+            //             return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
+            //         }
+            //
+            //         if (paymentTransaction.GetType() == typeof(PreauthTransaction))
+            //         {
+            //             var captureTransaction = _paymentTransactionService.SingleByPreauthTransactionId(ctx, paymentTransaction.Id);
+            //             if (captureTransaction != null) 
+            //                 paymentTransaction = captureTransaction;
+            //         }
+            //     }
+            //     else
+            //     {
+            //         var referencedTransaction = pspTransaction.GetByTransactionId(ts.Param);
+            //         paymentTransaction = pspTransaction.GetLatest();
+            //
+            //         if (referencedTransaction == null || paymentTransaction == null)
+            //         {
+            //             _logger.LogWarning($"PayOne: Webhook for transaction {ts.Param} is invalid. Rejecting request");
+            //
+            //             return new BadRequestObjectResult(string.Empty);
+            //         }
+            //     }
+            //
+            //     // Check chargeback fees
+            //     var chargebackFee = _payoneService.CheckForChargebackFee(ts, paymentTransaction);
+            //     if (chargebackFee != null)
+            //     {
+            //         chargebackFee = _chargebackFeeService.Create(entityContext, chargebackFee);
+            //         _logger.LogDebug($"PayOne: Registered handling fee for transaction {paymentTransaction}");
+            //     }
+            //
+            //     _payoneService.MapPaymentTransactionStatus(ts, paymentTransaction, chargebackFee, out var status,
+            //         out var refund);
+            //
+            //     if (int.TryParse(ts.Sequencenumber, out var sequenceNumber) && sequenceNumber > 0)
+            //     {
+            //         if (sequenceNumber > paymentTransaction.SequenceNumber)
+            //         {
+            //             _paymentTransactionService.UpdatePayOneTransactionSeqNumber(entityContext, sequenceNumber,
+            //                 paymentTransaction);
+            //         }
+            //
+            //         if (status != null)
+            //         {
+            //             var successOperations = GetTransactionSuccessOperationsCount(entityContext, paymentTransaction);
+            //
+            //             if (sequenceNumber + 1 < successOperations)
+            //             {
+            //                 _logger.LogDebug($"Skip webhook for transactionId={paymentTransaction.Id} because it's old");
+            //
+            //                 status = null;
+            //             }
+            //         }
+            //     }
+            //
+            //     if (status != null)
+            //     {
+            //         await HandlePSPWebhookAsync(entityContext, status, paymentTransaction, refund);
+            //         
+            //         _logger.LogDebug($"PayOne: webhook handled for payment transaction {paymentTransaction.Id}");
+            //     }
+            //
+            //     return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
+            // }
+            // catch (Exception ex)
+            // {
+            //     _logger.LogError($"Failed to process PayOne webhook: {result}", ex);
+            //     
+            //     return Error("Could not process event", HttpStatusCode.InternalServerError);
+            // }
+            
+            return new AcceptedResult();
+        }
+
+        #region private methods
 
         private static ExternalIntegrationErrorDTO CreateUnmappedError()
         {
@@ -241,11 +298,12 @@ namespace Business.Services
 
         private ExternalPaymentTransactionDTO TryToPopulateRecurringToken(ExternalPaymentRequest externalPaymentRequest)
         {
-            if (string.IsNullOrWhiteSpace(externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken))
+            var externalRecurringToken = externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken;
+            if (string.IsNullOrWhiteSpace(externalRecurringToken))
                 return null;
 
             var recurringToken = _recurringTokenService.SingleByIdOrDefault(
-                ObjectId.Parse(externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken));
+                ObjectId.Parse(externalRecurringToken));
             if (recurringToken == null)
             {
                 return new ExternalPaymentTransactionDTO
@@ -253,7 +311,7 @@ namespace Business.Services
                     Error = new ExternalIntegrationErrorDTO
                     {
                         ErrorCode = PaymentErrorCode.InvalidPreconditions,
-                        ErrorMessage = "Unknown recurringToken"
+                        ErrorMessage = $"Unknown recurringToken {externalRecurringToken}"
                     }
                 };
             }
@@ -269,12 +327,12 @@ namespace Business.Services
         {
             sequenceNumber = 0;
 
-            if (string.IsNullOrWhiteSpace(externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId))
+            var externalPreauthTransactionId = externalPaymentRequest?.PaymentRequestDto?.PaymentMeansReference?.PreauthTransactionId;
+            if (string.IsNullOrWhiteSpace(externalPreauthTransactionId))
                 return null;
 
             var paymentTransaction =
-                _paymentTransactionService.SingleByExternalTransactionIdOrDefault(externalPaymentRequest.PaymentRequestDto
-                    .PaymentMeansReference.PreauthTransactionId);
+                _paymentTransactionService.SingleByExternalTransactionIdOrDefault(externalPreauthTransactionId);
 
             if (paymentTransaction == null || !(paymentTransaction is PreauthTransaction preauthTransaction))
                 return new ExternalPaymentTransactionDTO
@@ -282,7 +340,7 @@ namespace Business.Services
                     Error = new ExternalIntegrationErrorDTO
                     {
                         ErrorCode = PaymentErrorCode.InvalidPreconditions,
-                        ErrorMessage = "Unknown recurringToken"
+                        ErrorMessage = $"Unknown preauthTransactionId {externalPreauthTransactionId}"
                     }
                 };
 
@@ -295,80 +353,29 @@ namespace Business.Services
             return null;
         }
 
-        #endregion
-
-        public Task<string> HandleWebhookAsync(string requestString)
+        private string TransformAndUpdateRecurringToken(string recurringTokenHash)
         {
-            var result = requestString.Replace("\n", string.Empty);
-            try
-            {
-                var ts = new TransactionStatus(result);
-                var pspTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.TxId); //Todo Double
-                PaymentTransactionBase transaction;
-                if (pspTransaction == null)
-                {
-                    transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
-
-                    if (transaction == null)
-                    {
-                        return null; //Todo
-                    }
-
-                    if (transaction.GetType() == typeof(PreauthTransaction))
-                    {
-                        var paymentTransaction = (PaymentTransaction)_paymentTransactionService.SingleByIdOrDefault(transaction.Id); //Todo SingleByPreauthTransactionId to find capture transaction by preauth
-                        if (paymentTransaction != null)
-                        {
-                            transaction = paymentTransaction;
-                        }
-                    }
-                }
-                else
-                {
-                    var referencedTransaction = pspTransaction; //Todo referenced transaction by SingleHackTransaction
-                    transaction = pspTransaction; //Todo latest transaction by SingleHackTransaction
-                    if (referencedTransaction == null || transaction == null)
-                    {
-                        return null; //Todo
-                    }
-                }
-
-                //Check chargeback fees
-                if (transaction.GetType() == typeof(PaymentTransaction))
-                {
-                    CheckForChargebackFee(ts, (PaymentTransaction)transaction);
-                }
-
-                //Map? 
-                MapPaymentTransactionStatus(ts, transaction);
-
-                if (Int32.TryParse(ts.Sequencenumber, out var sequenceNumber) && sequenceNumber > 0)
-                {
-                    if (sequenceNumber > transaction.SequenceNumber)
-                    {
-                        transaction.SequenceNumber = sequenceNumber;
-                    }
-                    //Todo Billwerk?
-                }
-
-                _paymentTransactionService.Update(transaction);
-
-                //if (status != null)
-                //{
-                //    //Send Webhook to Billwerk
-                //}
-
-                return Task.FromResult("");
-            }
-            catch (Exception ex)
+            if (string.IsNullOrWhiteSpace(recurringTokenHash))
             {
                 return null;
             }
+
+            var recurringToken = _recurringTokenEncoder.Decrypt(recurringTokenHash);
+            if (recurringToken.Id == ObjectId.Empty)
+            {
+                _recurringTokenService.Create(recurringToken);
+            }
+            else
+            {
+                _recurringTokenService.Update(recurringToken);
+            }
+
+            return recurringToken.Id.ToString();
         }
 
         private void CheckForChargebackFee(TransactionStatus status, PaymentTransaction transaction)
         {
-            var recivable = Decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
+            var recivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
             var fee = recivable - (transaction.RequestedAmount - transaction.RefundedAmount); //Todo HandlingFees
 
             if ((status.TxAction == "cancelation" || status.TxAction == "debit") && fee > 0m)
@@ -388,7 +395,10 @@ namespace Business.Services
 
                 if (transaction.Chargebacks == null)
                 {
-                    transaction.Chargebacks = new List<ExternalPaymentChargebackItemDTO> { externalPaymentChargebackItem };
+                    transaction.Chargebacks = new List<ExternalPaymentChargebackItemDTO>
+                    {
+                        externalPaymentChargebackItem
+                    };
                 }
                 else
                 {
@@ -465,7 +475,10 @@ namespace Business.Services
                     //Don't handle other webhooks
                     return;
             }
+
             //additional
         }
+
+        #endregion private methods
     }
 }
