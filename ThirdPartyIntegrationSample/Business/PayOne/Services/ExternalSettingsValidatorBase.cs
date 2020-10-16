@@ -27,28 +27,7 @@ namespace Business.PayOne.Services
             
             return errors;
         }
-        
-        protected static List<ExternalIntegrationErrorDTO> ValidatePrenotificationDays(
-            ExternalIntegrationValidateSettingsRequestDTO externalIntegrationSettings)
-        {
-            List<ExternalIntegrationErrorDTO> errors = null;
-            if (externalIntegrationSettings.InitialDDPrenotificationDays <
-                PayOneConstants.DirectDebitInitialPaymentProcessingDays)
-            {
-                AddError(ref errors,
-                    $"Value for InitialDDPrenotificationDays={externalIntegrationSettings.InitialDDPrenotificationDays} is too small, minimal value is = {PayOneConstants.DirectDebitInitialPaymentProcessingDays}");
-            }
 
-            if (externalIntegrationSettings.RecurringDDPrenotificationDays <
-                PayOneConstants.DirectDebitRecurringPaymentProcessingDays)
-            {
-                AddError(ref errors,
-                    $"Value for RecurringDDPrenotificationDays={externalIntegrationSettings.RecurringDDPrenotificationDays} is too small, minimal value is = {PayOneConstants.DirectDebitRecurringPaymentProcessingDays}");
-            }
-
-            return errors;
-        }
-        
         protected static void AddError(ref List<ExternalIntegrationErrorDTO> errors, string errorMessage)
         {
             errors ??= new List<ExternalIntegrationErrorDTO>();

@@ -44,7 +44,7 @@ namespace Business.PayOne.Services
         public async Task<ExternalPaymentResponse> SendPayment(ExternalPaymentRequest paymentRequest)
         {
             var isCapture =
-                string.IsNullOrWhiteSpace(paymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId) &&
+                !string.IsNullOrWhiteSpace(paymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId) &&
                 paymentRequest.PreauthRequestDto != null;
             if (isCapture)
             {
@@ -455,7 +455,7 @@ namespace Business.PayOne.Services
                 Currency = dto.Currency,
                 Narrative_Text = role == PaymentProviderRole.OnAccount
                     ? preauthDto.TransactionInvoiceReferenceText
-                    : dto.TransactionReferenceText,
+                    : preauthDto.TransactionReferenceText,
                 TxId = paymentRequest.PspTransactionId,
                 Transaction_Param = preauthDto.InvoiceReferenceCode,
                 Due_Time = GetDueTime(paymentDto)
@@ -569,7 +569,7 @@ namespace Business.PayOne.Services
 
         private static string GetDueTime(ExternalPaymentRequestDTO paymentDto)
         {
-            return paymentDto?.PlannedExecutionDate.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString();
+            return paymentDto?.PlannedExecutionDate?.AtMidnight().ToDateTimeUnspecified().ToUnixTime().ToString();
         }
 
         private static string BuildReference(string transactionId)

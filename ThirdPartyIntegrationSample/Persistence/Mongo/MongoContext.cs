@@ -14,6 +14,7 @@ namespace Persistence.Mongo
     public class MongoContext : IMongoContext
     {
         public const string MongoDatabaseMain = "thirdparty";
+        public const string TypeBsonDiscriminator = "_t";
         private readonly ILogger<MongoContext> _logger;
 
         static MongoContext()

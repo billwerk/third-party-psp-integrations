@@ -15,6 +15,7 @@ namespace Business.Helpers
             preauthTransaction.AuthorizedAmount = dto.AuthorizedAmount;
             preauthTransaction.Bearer = dto.Bearer;
             preauthTransaction.ExpiresAt = dto.ExpiresAt;
+            preauthTransaction.RecurringToken = dto.RecurringToken;
 
             return preauthTransaction;
         }
@@ -102,7 +103,7 @@ namespace Business.Helpers
                 LastUpdated = dto.LastUpdated,
                 RequestedAmount = dto.RequestedAmount,
                 ExternalTransactionId = dto.TransactionId,
-                PspTransactionId = dto.PspTransactionId,
+                PspTransactionId = dto.PspTransactionId
             };
 
             paymentTransaction.ForceId();
