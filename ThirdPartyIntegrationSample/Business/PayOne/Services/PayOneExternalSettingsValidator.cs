@@ -59,7 +59,6 @@ namespace Business.PayOne.Services
 
             Validate(result, err => ValidateIntegrationInfo(externalIntegrationSettings));
             Validate(result, err => ValidateMerchantSettings(externalIntegrationSettings));
-            Validate(result, err => ValidatePrenotificationDays(externalIntegrationSettings));
 
             return result;
         }
