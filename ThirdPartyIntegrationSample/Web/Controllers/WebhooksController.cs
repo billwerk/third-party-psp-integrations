@@ -18,11 +18,10 @@ namespace Web.Controllers
         }
 
         [HttpPost]
-        [Route("api/webhooks")]
-        public async Task<ObjectResult> Post([FromBody] string requestString)
+        [Route("webhooks")]
+        public Task<ObjectResult> Post([FromBody] string requestString)
         {
-            var result = await _paymentService.HandleWebhookAsync(requestString);
-            return Ok(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
+            return _paymentService.HandleWebhookAsync(requestString);
         }
     }
 }

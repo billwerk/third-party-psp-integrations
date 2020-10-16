@@ -40,6 +40,5 @@ namespace Core.Serializer
         }
 
         public override bool CanWrite => false;
-
     }
 }
