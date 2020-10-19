@@ -67,7 +67,7 @@ namespace Business.PayOne.Services
                 Narrative_Text = refundReference,
                 SequenceNumber = sequenceNumber.ToString(CultureInfo.InvariantCulture),
                 TxId = targetTransaction.PspTransactionId,
-                Transaction_Param = dto.InvoiceReferenceCode
+                //Transaction_Param = dto.InvoiceReferenceCode
             };
 
             var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
@@ -190,7 +190,7 @@ namespace Business.PayOne.Services
 
             if (result.Status == PaymentTransactionNewStatus.Failed) return result;
 
-            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature, response.Creditor_Identifier);
 
             PopulateRecurringToken(response, tetheredPaymentInformation, recurringToken, result);
 
@@ -242,16 +242,15 @@ namespace Business.PayOne.Services
                         bearerBankAccount.Country = payOnePspBearer.Iban.Substring(0, 2).ToUpperInvariant();
                         bearerBankAccount.BIC = payOnePspBearer.Bic;
                         bearerBankAccount.IBAN = payOnePspBearer.Iban;
-                        bearerBankAccount.Holder = payOnePspBearer.Holder;
                     }
                     else
                     {
-                        bearerBankAccount.Holder = payOnePspBearer.Holder;
                         bearerBankAccount.Account = payOnePspBearer.Account;
                         bearerBankAccount.Country = payOnePspBearer.Country;
                         bearerBankAccount.Code = payOnePspBearer.Code;
                     }
 
+                    bearerBankAccount.Holder = payOnePspBearer.Holder;
                     bearerBankAccount.CreditorId = payOnePspBearer.CreditorId;
                     bearerBankAccount.MandateReference = payOnePspBearer.MandateReference;
                     bearerBankAccount.MandateSignatureDate = payOnePspBearer.MandateSignatureDate;
@@ -269,7 +268,7 @@ namespace Business.PayOne.Services
         }
 
         private static void UpdateMandateIfRequired(PaymentBearerDTO bearer, PaymentProviderRole role,
-            string mandateIdentification, string mandateDateofsignature)
+            string mandateIdentification, string mandateDateofsignature, string creditorIdentifier)
         {
             if (role != PaymentProviderRole.Debit)
             {
@@ -284,6 +283,11 @@ namespace Business.PayOne.Services
             if (string.IsNullOrWhiteSpace(mandateDateofsignature) == false)
             {
                 ((PaymentBearerBankAccountDTO) bearer).MandateSignatureDate = ParsePayOneDate(mandateDateofsignature);
+            }
+            
+            if (string.IsNullOrWhiteSpace(creditorIdentifier) == false)
+            {
+                ((PaymentBearerBankAccountDTO) bearer).CreditorId = creditorIdentifier;
             }
         }
 
@@ -485,7 +489,7 @@ namespace Business.PayOne.Services
             if (captureResult.PaymentDto.Bearer != null)
             {
                 UpdateMandateIfRequired(captureResult.PaymentDto.Bearer, role, response.Mandate_Identification,
-                    response.Mandate_Dateofsignature);
+                    response.Mandate_Dateofsignature, response.Creditor_Identifier);
             }
 
             PopulatePspDueDate(captureResult.PaymentDto, role, response.Clearing_Date);
@@ -541,7 +545,7 @@ namespace Business.PayOne.Services
             if (result.Status == PaymentTransactionNewStatus.Failed) 
                 return recurringResult;
 
-            UpdateMandateIfRequired(recurringResult.PaymentDto.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature);
+            UpdateMandateIfRequired(recurringResult.PaymentDto.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature, response.Creditor_Identifier);
 
             PopulatePspDueDate(recurringResult.PaymentDto, role, response.Clearing_Date);
 
