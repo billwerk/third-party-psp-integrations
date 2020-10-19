@@ -77,26 +77,6 @@ namespace Business.Services
             return paymentResult.PaymentDto;
         }
 
-        private string TransformAndUpdateRecurringToken(string recurringTokenHash)
-        {
-            if (string.IsNullOrWhiteSpace(recurringTokenHash))
-            {
-                return null;
-            }
-
-            var recurringToken = _recurringTokenEncoder.Decrypt(recurringTokenHash);
-            if (recurringToken.Id == ObjectId.Empty)
-            {
-                _recurringTokenService.Create(recurringToken);
-            }
-            else
-            {
-                _recurringTokenService.Update(recurringToken);
-            }
-
-            return recurringToken.Id.ToString();
-        }
-
         public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
         {
             var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
@@ -230,78 +210,80 @@ namespace Business.Services
 
         public async Task<ObjectResult> HandleWebhookAsync(string requestString)
         {
-            var result = requestString.Replace("\n", string.Empty);
-            try
-            {
-                var ts = new TransactionStatus(result);
+            // var result = requestString.Replace("\n", string.Empty);
+            // try
+            // {
+            //     var ts = new TransactionStatus(result);
+            //
+            //     _logger.LogDebug($"PayOne: provider transaction id {ts.TxId}, status {ts.TxAction}");
+            //
+            //     var pspTransaction = _paymentTransactionService.SinglePspTransactionByProviderTransactionId(ts.TxId);
+            //
+            //     PaymentTransactionBase paymentTransaction;
+            //     if (pspTransaction == null)
+            //     {
+            //         paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
+            //
+            //         if (paymentTransaction == null)
+            //         {
+            //             _logger.LogWarning($"PayOne: provider transaction not found (id={ts.TxId},our reference={ts.Param}). Probably it is a transaction of a different system");
+            //             
+            //             return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
+            //         }
+            //
+            //         if (paymentTransaction.GetType() == typeof(PreauthTransaction))
+            //         {
+            //             var captureTransaction = _paymentTransactionService.SingleByPreauthTransactionId((paymentTransaction as PreauthTransaction).GetId());
+            //             if (captureTransaction != null) 
+            //                 paymentTransaction = captureTransaction;
+            //         }
+            //     }
+            //     else
+            //     {
+            //         var referencedTransaction = pspTransaction.GetByTransactionId(ts.Param);
+            //         paymentTransaction = pspTransaction.GetLatest();
+            //
+            //         if (referencedTransaction == null || paymentTransaction == null)
+            //         {
+            //             _logger.LogWarning($"PayOne: Webhook for transaction {ts.Param} is invalid. Rejecting request");
+            //
+            //             return new BadRequestObjectResult(string.Empty);
+            //         }
+            //     }
+            //
+            //     MapPaymentTransactionStatus(ts, paymentTransaction, out var refund);
+            //
+            //     if (int.TryParse(ts.Sequencenumber, out var sequenceNumber) && sequenceNumber > 0)
+            //     {
+            //         if (sequenceNumber > paymentTransaction.SequenceNumber)
+            //         {
+            //             var wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(paymentTransaction, sequenceNumber);
+            //             if (!wasUpdated)
+            //             {
+            //                 _logger.LogError($"Updating SequenceNumber to {sequenceNumber} for transaction {paymentTransaction.Id} failed");
+            //             }
+            //         }
+            //
+            //         if (status != null)
+            //         {
+            //             var successOperations = GetTransactionSuccessOperationsCount(entityContext, paymentTransaction);
+            //             if (sequenceNumber + 1 < successOperations)
+            //             {
+            //                 _logger.LogDebug($"Skip webhook for transactionId={paymentTransaction.Id} because it's old");
+            //             }
+            //         }
+            //     }
+            //
+            //     return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
+            // }
+            // catch (Exception ex)
+            // {
+            //     _logger.LogError($"Failed to process PayOne webhook: {result}", ex);
+            //     
+            //     return Error("Could not process event", HttpStatusCode.InternalServerError);
+            // }
             
-                _logger.LogDebug($"PayOne: provider transaction id {ts.TxId}, status {ts.TxAction}");
-            
-                var pspTransaction = _paymentTransactionService.SinglePspTransactionByProviderTransactionId(ts.TxId);
-            
-                PaymentTransactionBase paymentTransaction;
-                if (pspTransaction == null)
-                {
-                    paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
-            
-                    if (paymentTransaction == null)
-                    {
-                        _logger.LogWarning($"PayOne: provider transaction not found (id={ts.TxId},our reference={ts.Param}). Probably it is a transaction of a different system");
-                        
-                        return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
-                    }
-            
-                    if (paymentTransaction.GetType() == typeof(PreauthTransaction))
-                    {
-                        var captureTransaction = _paymentTransactionService.SingleByPreauthTransactionId((paymentTransaction as PreauthTransaction).GetId());
-                        if (captureTransaction != null) 
-                            paymentTransaction = captureTransaction;
-                    }
-                }
-                else
-                {
-                    var referencedTransaction = pspTransaction.GetByTransactionId(ts.Param);
-                    paymentTransaction = pspTransaction.GetLatest();
-            
-                    if (referencedTransaction == null || paymentTransaction == null)
-                    {
-                        _logger.LogWarning($"PayOne: Webhook for transaction {ts.Param} is invalid. Rejecting request");
-            
-                        return new BadRequestObjectResult(string.Empty);
-                    }
-                }
-
-                MapPaymentTransactionStatus(ts, paymentTransaction, out RefundTransaction refund);
-            
-                if (int.TryParse(ts.Sequencenumber, out var sequenceNumber) && sequenceNumber > 0)
-                {
-                    if (sequenceNumber > paymentTransaction.SequenceNumber)
-                    {
-                        var wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(paymentTransaction, sequenceNumber);
-                        if (!wasUpdated)
-                        {
-                            _logger.LogError($"Updating SequenceNumber to {sequenceNumber} for transaction {paymentTransaction.Id} failed");
-                        }
-                    }
-            
-                    if (status != null)
-                    {
-                        var successOperations = GetTransactionSuccessOperationsCount(entityContext, paymentTransaction);
-                        if (sequenceNumber + 1 < successOperations)
-                        {
-                            _logger.LogDebug($"Skip webhook for transactionId={paymentTransaction.Id} because it's old");
-                        }
-                    }
-                }
-
-                return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to process PayOne webhook: {result}", ex);
-                
-                return Error("Could not process event", HttpStatusCode.InternalServerError);
-            }
+            return new AcceptedResult();
         }
 
         #region private methods
@@ -401,131 +383,131 @@ namespace Business.Services
             return recurringToken.Id.ToString();
         }
         
-        private decimal GetChargebackFeeAmount(TransactionStatus status, PaymentTransactionBase transaction)
-        {
-            var receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
-            var fee = receivable - (transaction.RequestedAmount - transaction.RefundedAmount);
+        // private decimal GetChargebackFeeAmount(TransactionStatus status, PaymentTransactionBase transaction)
+        // {
+        //     var receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
+        //     var fee = receivable - (transaction.RequestedAmount - transaction.RefundedAmount);
+        //
+        //     if ((status.TxAction == "cancelation" || status.TxAction == "debit") && fee > 0m)
+        //     {
+        //         return fee;
+        //     }
+        //
+        //     return 0;
+        // }
         
-            if ((status.TxAction == "cancelation" || status.TxAction == "debit") && fee > 0m)
-            {
-                return fee;
-            }
-
-            return 0;
-        }
-        
-        public void MapPaymentTransactionStatus(TransactionStatus status, PaymentTransactionBase transaction, out RefundTransaction refund)
-        {
-            decimal receivable = 0;
-            decimal balance = 0;
-            refund = null;
-
-            if (string.IsNullOrWhiteSpace(status.Receivable))
-            {
-                _logger.LogWarning("PayOne: Webhook data does not contain receivable value.");
-            }
-            else
-            {
-                receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
-            }
-
-            if (string.IsNullOrWhiteSpace(status.Balance))
-            {
-                _logger.LogWarning("PayOne: Webhook data does not contain balance value.");
-            }
-            else
-            {
-                balance = decimal.Parse(status.Balance, CultureInfo.InvariantCulture);
-            }
-            
-            var paymentTransaction = transaction as PaymentTransaction;
-            switch (status.TxAction)
-            {
-                case "appointed":
-                case "capture":
-                    // This status should not be relevant for any transaction. Initial Succeeded or PreliminarySucceeded
-                    // is set during actual payment request already so this is redundant
-                    break; 
-                case "paid":
-                case "underpaid":
-                    if (paymentTransaction != null)
-                    {
-                        var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
-                        var chargebacksAmount = paymentTransaction.Chargebacks?.Sum(c => c.Amount) ?? 0;
-                        var paidAmount = paymentTransaction.Payments?.Sum(c => c.Amount) ?? 0;
-                        var targetBalance = paymentTransaction.RequestedAmount + chargebacksFee + chargebacksAmount - paidAmount;
- 
-                        RegisterPayment(status.Sequencenumber, paymentTransaction, targetBalance - balance);
-                    }
-
-                    break;
-                case "refund":
-                    if (paymentTransaction != null)
-                    {
-                        var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
-                        var refundedAmount= (paymentTransaction.RequestedAmount + chargebacksFee - paymentTransaction.RefundedAmount) -
-                                          receivable;
-
-                        if (int.TryParse(status.Sequencenumber, out var sequenceNumber))
-                        {
-                            var refundTransactions = _paymentTransactionService.a
-                            // Ignore webhook, because this status is already handled
-                            if (transaction.StatusHistory.Any(s => s.RefundReference == sequenceNumber.ToString()))
-                            {
-                                return;
-                            }
-
-                            refund = new PaymentRefund
-                            {
-                                Amount = ptStatus.Amount.Value,
-                                Status = PaymentRefundStatus.Succeeded
-                            };
-                        }
-                    }
-
-                    break;
-                case "cancelation":
-                    ptStatus.ProviderErrorCode = status.FailedCause;
-                    ptStatus.RetryStrategy = PaymentRetryStrategy.NoRetry;
-                    ptStatus.Status = PaymentStatusValue.Chargeback;
-                    
-                    if (string.IsNullOrWhiteSpace(status.FailedCause) == false)
-                    {
-                        var failedCause = status.FailedCause.ToLower();
-                        
-                        switch (failedCause)
-                        {
-                            case "soc":
-                                ptStatus.ErrorCode = PaymentErrorCode.InsufficientBalance;
-                                break;
-                            case "cka":
-                            case "uan":
-                                ptStatus.ErrorCode = PaymentErrorCode.BearerInvalid;
-                                break;
-                            case "ndd":
-                                ptStatus.ErrorCode = PaymentErrorCode.BearerInvalid;
-                                break;
-                            case "cb":
-                            case "obj":
-                                ptStatus.ErrorCode = PaymentErrorCode.Canceled;
-                                break;
-                            case "ret":
-                            case "nelv":
-                            case "ncc":
-                                ptStatus.ErrorCode = PaymentErrorCode.Rejected;
-                                break;
-                            default:
-                                ptStatus.ErrorCode = PaymentErrorCode.UnmappedError;
-                                ptStatus.Status = PaymentStatusValue.Failed;
-                                break;
-                        }
-                    }
-
-                    break;
-                default:
-                    return;
-            }
-        }
+        // private void MapPaymentTransactionStatus(TransactionStatus status, PaymentTransactionBase transaction, out RefundTransaction refund)
+        // {
+        //     decimal receivable = 0;
+        //     decimal balance = 0;
+        //     refund = null;
+        //
+        //     if (string.IsNullOrWhiteSpace(status.Receivable))
+        //     {
+        //         _logger.LogWarning("PayOne: Webhook data does not contain receivable value.");
+        //     }
+        //     else
+        //     {
+        //         receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
+        //     }
+        //
+        //     if (string.IsNullOrWhiteSpace(status.Balance))
+        //     {
+        //         _logger.LogWarning("PayOne: Webhook data does not contain balance value.");
+        //     }
+        //     else
+        //     {
+        //         balance = decimal.Parse(status.Balance, CultureInfo.InvariantCulture);
+        //     }
+        //     
+        //     var paymentTransaction = transaction as PaymentTransaction;
+        //     switch (status.TxAction)
+        //     {
+        //         case "appointed":
+        //         case "capture":
+        //             // This status should not be relevant for any transaction. Initial Succeeded or PreliminarySucceeded
+        //             // is set during actual payment request already so this is redundant
+        //             break; 
+        //         case "paid":
+        //         case "underpaid":
+        //             if (paymentTransaction != null)
+        //             {
+        //                 var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
+        //                 var chargebacksAmount = paymentTransaction.Chargebacks?.Sum(c => c.Amount) ?? 0;
+        //                 var paidAmount = paymentTransaction.Payments?.Sum(c => c.Amount) ?? 0;
+        //                 var targetBalance = paymentTransaction.RequestedAmount + chargebacksFee + chargebacksAmount - paidAmount;
+        //
+        //                 RegisterPayment(status.Sequencenumber, paymentTransaction, targetBalance - balance);
+        //             }
+        //
+        //             break;
+        //         case "refund":
+        //             if (paymentTransaction != null)
+        //             {
+        //                 var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
+        //                 var refundedAmount= (paymentTransaction.RequestedAmount + chargebacksFee - paymentTransaction.RefundedAmount) -
+        //                                   receivable;
+        //
+        //                 if (int.TryParse(status.Sequencenumber, out var sequenceNumber))
+        //                 {
+        //                     var refundTransactions = _paymentTransactionService.a
+        //                     // Ignore webhook, because this status is already handled
+        //                     if (transaction.StatusHistory.Any(s => s.RefundReference == sequenceNumber.ToString()))
+        //                     {
+        //                         return;
+        //                     }
+        //
+        //                     refund = new PaymentRefund
+        //                     {
+        //                         Amount = ptStatus.Amount.Value,
+        //                         Status = PaymentRefundStatus.Succeeded
+        //                     };
+        //                 }
+        //             }
+        //
+        //             break;
+        //         case "cancelation":
+        //             ptStatus.ProviderErrorCode = status.FailedCause;
+        //             ptStatus.RetryStrategy = PaymentRetryStrategy.NoRetry;
+        //             ptStatus.Status = PaymentStatusValue.Chargeback;
+        //             
+        //             if (string.IsNullOrWhiteSpace(status.FailedCause) == false)
+        //             {
+        //                 var failedCause = status.FailedCause.ToLower();
+        //                 
+        //                 switch (failedCause)
+        //                 {
+        //                     case "soc":
+        //                         ptStatus.ErrorCode = PaymentErrorCode.InsufficientBalance;
+        //                         break;
+        //                     case "cka":
+        //                     case "uan":
+        //                         ptStatus.ErrorCode = PaymentErrorCode.BearerInvalid;
+        //                         break;
+        //                     case "ndd":
+        //                         ptStatus.ErrorCode = PaymentErrorCode.BearerInvalid;
+        //                         break;
+        //                     case "cb":
+        //                     case "obj":
+        //                         ptStatus.ErrorCode = PaymentErrorCode.Canceled;
+        //                         break;
+        //                     case "ret":
+        //                     case "nelv":
+        //                     case "ncc":
+        //                         ptStatus.ErrorCode = PaymentErrorCode.Rejected;
+        //                         break;
+        //                     default:
+        //                         ptStatus.ErrorCode = PaymentErrorCode.UnmappedError;
+        //                         ptStatus.Status = PaymentStatusValue.Failed;
+        //                         break;
+        //                 }
+        //             }
+        //
+        //             break;
+        //         default:
+        //             return;
+        //     }
+        // }
 
         private static void RegisterPayment(string externalItemId, PaymentTransaction paymentTransaction, decimal amount)
         {
