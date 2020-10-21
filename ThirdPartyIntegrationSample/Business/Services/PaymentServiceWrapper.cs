@@ -59,7 +59,7 @@ namespace Business.Services
             var resultOfPopulation = TryToPopulatePreauthRequestDto(externalPaymentRequest, out var sequenceNumber);
             if (resultOfPopulation != null) return resultOfPopulation;
 
-            resultOfPopulation = TryToPopulateRecurringToken(externalPaymentRequest);
+            resultOfPopulation = TryToPopulateRecurringToken(externalPaymentRequest.PaymentRequestDto);
             if (resultOfPopulation != null) return resultOfPopulation;
 
             var paymentResult = await _paymentService.SendPayment(externalPaymentRequest);
@@ -109,6 +109,13 @@ namespace Business.Services
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
         {
+            var resultOfPopulation = TryToPopulateRecurringToken(dto);
+            if (resultOfPopulation != null)
+                return new ExternalPreauthTransactionDTO
+                {
+                    Error = resultOfPopulation.Error
+                };
+
             var preauthResult = await _paymentService.SendPreauth(dto);
 
             preauthResult.RecurringToken = TransformAndUpdateRecurringToken(preauthResult.RecurringToken);
@@ -227,8 +234,9 @@ namespace Business.Services
                 if (AnalyzeSequenceNumber(ts, paymentTransaction, wasSkipped, out var objectResult)) return objectResult;
 
                 _paymentTransactionService.Update(paymentTransaction);
-                
-                BackgroundJob.Enqueue<IWebhookService>(service => service.Send(paymentTransaction.WebhookTarget, paymentTransaction.ExternalTransactionId));
+
+                BackgroundJob.Enqueue<IWebhookService>(service =>
+                    service.Send(paymentTransaction.WebhookTarget, paymentTransaction.ExternalTransactionId));
 
                 return BuildAcceptResult();
             }
@@ -347,9 +355,10 @@ namespace Business.Services
             };
         }
 
-        private ExternalPaymentTransactionDTO TryToPopulateRecurringToken(ExternalPaymentRequest externalPaymentRequest)
+        private ExternalPaymentTransactionDTO TryToPopulateRecurringToken(
+            ExternalPaymentTransactionBasePaymentRequestDTO requestDto)
         {
-            var externalRecurringToken = externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken;
+            var externalRecurringToken = requestDto.PaymentMeansReference.RecurringToken;
             if (string.IsNullOrWhiteSpace(externalRecurringToken)) return null;
 
             var recurringToken = _recurringTokenService.SingleByIdOrDefault(ObjectId.Parse(externalRecurringToken));
@@ -365,8 +374,7 @@ namespace Business.Services
                 };
             }
 
-            externalPaymentRequest.PaymentRequestDto.PaymentMeansReference.RecurringToken =
-                _recurringTokenEncoder.Encrypt(recurringToken);
+            requestDto.PaymentMeansReference.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
 
             return null;
         }
