@@ -126,11 +126,12 @@ namespace Business.PayOne.Services
             return BuildAndPopulateExternalPreauthTransactionDto(dto, response, tetheredPaymentInformation, recurringToken);
         }
 
-        public async Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto)
+        public async Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto, PaymentTransactionBase targetTransaction)
         {
             var paymentRequest = new ExternalPaymentRequest
             {
-                PreauthRequestDto = dto
+                PreauthRequestDto = dto,
+                PspTransactionId = targetTransaction.PspTransactionId 
             };
 
             var result = await ProcessCaptureTransactionAsync(paymentRequest);
@@ -471,7 +472,7 @@ namespace Business.PayOne.Services
             _logger.LogInformation(
                 $"Processed PayOne capture payment {response.TxId} for payment transaction {paymentDto?.TransactionId ?? preauthDto.TransactionId}. Status: {response.Status}");
 
-            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(paymentDto, response.TxId);
+            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPaymentTransactionDTO>(dto, response.TxId);
 
             result.Bearer = paymentRequest.BearerDto;
 

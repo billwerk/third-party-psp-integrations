@@ -13,7 +13,7 @@ namespace Business.Interfaces
         Task<ExternalPaymentResponse> SendPayment(ExternalPaymentRequest paymentRequest);
         Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto, PaymentTransactionBase targetTransaction);
         Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto);
-        Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto);
+        Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto, PaymentTransactionBase targetTransaction);
         Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId);
         Task<ExternalRefundTransactionDTO> FetchRefund(string transactionId);
         Task<ExternalPreauthTransactionDTO> FetchPreauth(string transactionId);
