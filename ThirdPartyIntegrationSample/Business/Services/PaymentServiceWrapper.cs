@@ -205,7 +205,7 @@ namespace Business.Services
             var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
             if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
             {
-                return await _paymentService.SendCancellation(preauthTransaction.ToRequestDto());
+                return await _paymentService.SendCancellation(preauthTransaction.ToRequestDto(), preauthTransaction);
             }
 
             return new ExternalPaymentCancellationDTO

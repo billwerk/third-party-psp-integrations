@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson.Serialization;
+﻿using Billwerk.Payment.SDK.DTO;
+using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 
 namespace Persistence.Mongo
@@ -20,6 +21,9 @@ namespace Persistence.Mongo
 
             DateTimeOffsetBsonSerializer.Register();
             BsonSerializer.RegisterSerializationProvider(new ObjectIdTBsonSerializationProvider());
+            
+            BsonClassMap.RegisterClassMap<PaymentBearerCreditCardDTO>();
+            BsonClassMap.RegisterClassMap<PaymentBearerBankAccountDTO>();
         }
 
         static RegisterBsonSerializers()
