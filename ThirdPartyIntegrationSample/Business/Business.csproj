@@ -12,6 +12,12 @@
       <Reference Include="Billwerk.Payment.SDK, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
         <HintPath>..\..\Libs\Billwerk.Payment.SDK.dll</HintPath>
       </Reference>
+      <Reference Include="Microsoft.AspNetCore.Http.Abstractions, Version=3.1.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
+        <HintPath>C:\Program Files\dotnet\packs\Microsoft.AspNetCore.App.Ref\3.1.8\ref\netcoreapp3.1\Microsoft.AspNetCore.Http.Abstractions.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.AspNetCore.Mvc.Abstractions, Version=3.1.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
+        <HintPath>C:\Program Files\dotnet\packs\Microsoft.AspNetCore.App.Ref\3.1.8\ref\netcoreapp3.1\Microsoft.AspNetCore.Mvc.Abstractions.dll</HintPath>
+      </Reference>
       <Reference Include="Microsoft.AspNetCore.Mvc.Core, Version=3.1.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
         <HintPath>C:\Program Files\dotnet\packs\Microsoft.AspNetCore.App.Ref\3.1.8\ref\netcoreapp3.1\Microsoft.AspNetCore.Mvc.Core.dll</HintPath>
       </Reference>
@@ -21,6 +27,7 @@
       <PackageReference Include="Hangfire.Core" Version="1.7.13" />
       <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
       <PackageReference Include="NodaTime" Version="3.0.0" />
+      <PackageReference Include="System.Web.Http.Common" Version="4.0.20126.16343" />
     </ItemGroup>
 
     <ItemGroup>

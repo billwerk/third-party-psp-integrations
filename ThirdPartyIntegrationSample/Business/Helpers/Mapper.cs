@@ -103,7 +103,7 @@ namespace Business.Helpers
                 LastUpdated = dto.LastUpdated,
                 RequestedAmount = dto.RequestedAmount,
                 ExternalTransactionId = dto.TransactionId,
-                PspTransactionId = dto.PspTransactionId
+                PspTransactionId = dto.PspTransactionId,
             };
 
             paymentTransaction.ForceId();

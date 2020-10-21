@@ -14,11 +14,18 @@ namespace Persistence.Models
         {
             _all.Add(paymentTransaction);
         }
-
+        
         public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture)
         {
             _all.Add(preauth);
             _all.Add(capture);
+        }
+
+        public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture, RefundTransaction refund)
+        {
+            _all.Add(preauth);
+            _all.Add(capture);
+            _all.Add(refund);
         }
 
         public PaymentTransactionBase GetLatest()
@@ -53,6 +60,24 @@ namespace Persistence.Models
                     }
                     if (preauth!=null && capture!=null)
                         return new SinglePspTransaction(preauth, capture);
+                    break;
+                }
+                case 3:
+                {
+                    PreauthTransaction preauth = null;
+                    PaymentTransaction capture = null;
+                    RefundTransaction refund = null;
+                    foreach (var transaction in lst)
+                    {
+                        if (transaction.GetType() == typeof(PreauthTransaction))
+                            preauth = transaction as PreauthTransaction;
+                        else if (transaction.GetType() == typeof(PaymentTransaction))
+                            capture = transaction as PaymentTransaction;
+                        else if (transaction.GetType() == typeof(RefundTransaction))
+                            refund = transaction as RefundTransaction;
+                    }
+                    if (preauth!=null && capture!=null && refund!=null)
+                        return new SinglePspTransaction(preauth, capture, refund);
                     break;
                 }
             }
