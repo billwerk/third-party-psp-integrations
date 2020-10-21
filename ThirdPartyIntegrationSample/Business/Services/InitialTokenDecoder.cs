@@ -2,7 +2,6 @@
 using Business.Models;
 using Newtonsoft.Json;
 
-
 namespace Business.Services
 {
     public class InitialTokenDecoder : IInitialTokenDecoder
