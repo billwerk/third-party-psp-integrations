@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Business.Interfaces
 {
     public interface IPaymentServiceWrapper
-    {
-        Task<ObjectResult> HandleWebhookAsync(string requestString);
+    { 
+        ObjectResult HandleWebhookAsync(string requestString);
         Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto);
         Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto);
         Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto);

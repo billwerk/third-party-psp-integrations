@@ -73,10 +73,13 @@ namespace Web {
             services.AddScoped<IPayOneWrapper, PayOneWrapper>();
             services.AddScoped<IRestClient, RestClient>();
             services.AddScoped<HttpClient, HttpClient>();
-            services.AddSingleton<IHttpContentFactory, PayOneFormUrlEncodedContentFactory>();
+            services.AddSingleton<IHttpContentFactory, FormUrlEncodedContentFactory>();
+            services.AddSingleton<IHttpContentFactory, JsonStringContentFactory>();
             services.AddSingleton<IHttpClientHandlerFactory, HttpClientHandlerFactory>();
             services.AddScoped<IRecurringTokenEncoder<RecurringToken>, PayOneRecurringTokenEncoder>();
             services.AddScoped<IRecurringTokenService, RecurringTokenService>();
+            services.AddScoped<IWebhookService, WebhookService>();
+
             
             // Add Hangfire services.
             services.AddHangfire(configuration => configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
@@ -97,8 +100,11 @@ namespace Web {
                     }));
 
             // Add the processing server as IHostedService
-            services.AddHangfireServer(serverOptions => { serverOptions.ServerName = "Hangfire server 1"; });
-            
+            services.AddHangfireServer(serverOptions =>
+            {
+                serverOptions.ServerName = "Hangfire server 1";
+            });
+
             services.AddMvc().AddNewtonsoftJson(options =>
             {
                 options.SerializerSettings.Converters = new List<JsonConverter>

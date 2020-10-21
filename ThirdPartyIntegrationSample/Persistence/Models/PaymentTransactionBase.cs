@@ -28,6 +28,8 @@ namespace Persistence.Models
         public PaymentProviderRole Role { get; set; }
         public List<PaymentTransactionNewStatus> StatusHistory { get; set; }
         public int SequenceNumber { get; set; }
+        
+        public string WebhookTarget { get; set; }
 
         [BsonIgnore]
         public PaymentTransactionNewStatus? Status =>

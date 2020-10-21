@@ -6,6 +6,7 @@
         MultipartContent,
         StreamContent,
         StringContent,
+        JsonStringContent,
         ByteArrayContent,
         MultipartFormDataContent,
         ReadOnlyMemoryContent

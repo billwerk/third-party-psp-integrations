@@ -6,7 +6,7 @@ using Core.Interfaces;
 
 namespace Core.Rest
 {
-    public class PayOneFormUrlEncodedContentFactory : IHttpContentFactory
+    public class FormUrlEncodedContentFactory : IHttpContentFactory
     {
         public HttpContentType Type => HttpContentType.FormUrlEncodedContent;
         
