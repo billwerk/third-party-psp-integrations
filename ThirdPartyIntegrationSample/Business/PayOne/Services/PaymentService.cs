@@ -54,7 +54,7 @@ namespace Business.PayOne.Services
             return await ProcessTransaction(paymentRequest);
         }
 
-        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto, PaymentTransactionBase targetTransaction)
+        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto, PaymentTransaction targetTransaction)
         {
             var settings = GetPspSettings<PayOnePSPSettings>(dto.MerchantSettings);
             var sequenceNumber = targetTransaction.SequenceNumber + 1;
@@ -67,7 +67,7 @@ namespace Business.PayOne.Services
                 Narrative_Text = refundReference,
                 SequenceNumber = sequenceNumber.ToString(CultureInfo.InvariantCulture),
                 TxId = targetTransaction.PspTransactionId,
-                //Transaction_Param = dto.InvoiceReferenceCode
+                Transaction_Param = targetTransaction.InvoiceReferenceCode
             };
 
             var restResult = await _payOneWrapper.ExecutePayOneRequestAsync(request);
@@ -126,7 +126,7 @@ namespace Business.PayOne.Services
             return BuildAndPopulateExternalPreauthTransactionDto(dto, response, tetheredPaymentInformation, recurringToken);
         }
 
-        public async Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto, PaymentTransactionBase targetTransaction)
+        public async Task<ExternalPaymentCancellationDTO> SendCancellation(ExternalPreauthRequestDTO dto, PreauthTransaction targetTransaction)
         {
             var paymentRequest = new ExternalPaymentRequest
             {

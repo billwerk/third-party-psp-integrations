@@ -69,6 +69,9 @@ namespace Business.Services
             mappedPaymentTransaction.MerchantSettings = paymentDto.MerchantSettings;
             mappedPaymentTransaction.Role = paymentDto.PaymentMeansReference.Role;
             mappedPaymentTransaction.WebhookTarget = paymentDto.WebhookTarget;
+            mappedPaymentTransaction.InvoiceReferenceCode = paymentDto.InvoiceReferenceCode;
+            mappedPaymentTransaction.TransactionReferenceText = paymentDto.TransactionReferenceText;
+            mappedPaymentTransaction.TransactionInvoiceReferenceText = paymentDto.TransactionInvoiceReferenceText;
 
             paymentResult.PaymentDto.ExternalTransactionId = mappedPaymentTransaction.Id.ToString();
 
@@ -82,7 +85,6 @@ namespace Business.Services
         public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
         {
             var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
-
             if (targetTransaction == null)
             {
                 return new ExternalRefundTransactionDTO
@@ -91,7 +93,7 @@ namespace Business.Services
                 };
             }
 
-            var refundResult = await _paymentService.SendRefund(dto, targetTransaction);
+            var refundResult = await _paymentService.SendRefund(dto, targetTransaction as PaymentTransaction);
 
             var refundTransaction = refundResult.ToEntity();
 
