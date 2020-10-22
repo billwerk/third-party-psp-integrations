@@ -178,11 +178,10 @@ namespace Business.PayOne.Services
 
             PopulateTransactionStatus(response, result);
 
-            //ToDo: Should be discussed
-            // if (result.Status == PaymentStatusValue.ThreeDSecurePending)
-            // {
-            //     postProcessUrl = response.RedirectUrl;
-            // }
+            if (!string.IsNullOrEmpty(response.RedirectUrl))
+            {
+                result.RedirectUrl = response.RedirectUrl;
+            }
 
             if (result.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
             {

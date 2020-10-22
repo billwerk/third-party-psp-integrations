@@ -82,9 +82,9 @@ namespace Business.Services
             return paymentResult.PaymentDto;
         }
 
-        public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto)
+        public async Task<ExternalRefundTransactionDTO> SendRefund(string transactionId, ExternalRefundRequestDTO dto)
         {
-            var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
+            var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
             if (targetTransaction == null)
             {
                 return new ExternalRefundTransactionDTO

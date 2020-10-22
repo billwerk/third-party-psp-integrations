@@ -20,9 +20,9 @@ namespace Web.Controllers
         }
         
         [HttpPost]
-        public async Task<ObjectResult> Refund(ExternalRefundRequestDTO dto)
+        public async Task<ObjectResult> Refund(string id, ExternalRefundRequestDTO dto)
         {
-            return BuildResponse(await _paymentService.SendRefund(dto));
+            return BuildResponse(await _paymentService.SendRefund(id, dto));
         }
 
         public PaymentsRefundsController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor,
