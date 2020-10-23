@@ -62,7 +62,7 @@ namespace Business.PayOne.Services
             //Todo is Initial Payment
             var request = new Refund(true, settings)
             {
-                Amount = ((int)(dto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
+                Amount = ((int)( - dto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
                 Currency = dto.Currency,
                 Narrative_Text = refundReference,
                 SequenceNumber = sequenceNumber.ToString(CultureInfo.InvariantCulture),
