@@ -111,9 +111,9 @@ namespace Business.PayOne.Services
                 Param = dto.TransactionId,
                 PaymentBearer = GetPaymentBearer(tetheredPaymentInformation, role),
                 Customer = GetPayOneCustomer(payer, userId),
-                SuccessUrl = dto.PaymentMeansReference.ReturnUrl,
-                ErrorUrl = dto.PaymentMeansReference.ReturnUrl,
-                BackUrl = dto.PaymentMeansReference.ReturnUrl,
+                SuccessUrl = dto.PaymentMeansReference.SuccessReturnUrl,
+                ErrorUrl = dto.PaymentMeansReference.ErrorReturnUrl,
+                BackUrl = dto.PaymentMeansReference.AbortReturnUrl,
                 ECommerceMode = initialPayment ? null : "internet"
             };
 
@@ -516,9 +516,9 @@ namespace Business.PayOne.Services
                 Transaction_Param = paymentDto.InvoiceReferenceCode,
                 PaymentBearer = GetPaymentBearer(recurringToken.PspBearer as PayOnePspBearer, role),
                 Customer = GetPayOneCustomer(paymentDto.PayerData, recurringToken.UserId),
-                SuccessUrl = paymentDto.PaymentMeansReference.ReturnUrl,
-                ErrorUrl = paymentDto.PaymentMeansReference.ReturnUrl,
-                BackUrl = paymentDto.PaymentMeansReference.ReturnUrl,
+                SuccessUrl = paymentDto.PaymentMeansReference.SuccessReturnUrl,
+                ErrorUrl = paymentDto.PaymentMeansReference.ErrorReturnUrl,
+                BackUrl = paymentDto.PaymentMeansReference.AbortReturnUrl,
                 ECommerceMode = "internet",
                 Due_Time = GetDueTime(paymentDto)
             };
