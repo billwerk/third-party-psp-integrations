@@ -1,4 +1,5 @@
-﻿using Core.Rest;
+﻿using Billwerk.Payment.SDK.Rest;
+using Core.Rest;
 
 namespace Business
 {

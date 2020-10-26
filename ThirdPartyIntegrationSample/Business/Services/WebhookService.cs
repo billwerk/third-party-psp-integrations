@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Billwerk.Payment.SDK.Interfaces;
+using Billwerk.Payment.SDK.Rest;
 using Business.Interfaces;
 using Business.Models;
 using Core.Interfaces;
@@ -26,7 +28,7 @@ namespace Business.Services
             var restResult =
                 await _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent);
 
-            if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.OK)
+            if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.Accepted)
             {
                 //Todo: Exception to retry
                 throw new WebException();

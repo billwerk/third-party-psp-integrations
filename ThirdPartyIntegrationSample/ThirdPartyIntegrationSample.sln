@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Business", "Business\Business.csproj", "{CA416611-6B80-4EB7-8F8B-14DA02CF2A83}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Billwerk.Payment.PayOne", "Billwerk.Payment.PayOne\Billwerk.Payment.PayOne.csproj", "{6A4827FF-F7E2-49AC-BD33-59EDD2FE5A93}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Billwerk.Payment.SDK", "..\..\src2\Billwerk.Payment.SDK\Billwerk.Payment.SDK.csproj", "{24CC42A2-F2D9-4255-8DA8-43891D23745C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,13 @@ Global
 		{CA416611-6B80-4EB7-8F8B-14DA02CF2A83}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CA416611-6B80-4EB7-8F8B-14DA02CF2A83}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CA416611-6B80-4EB7-8F8B-14DA02CF2A83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6A4827FF-F7E2-49AC-BD33-59EDD2FE5A93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A4827FF-F7E2-49AC-BD33-59EDD2FE5A93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A4827FF-F7E2-49AC-BD33-59EDD2FE5A93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A4827FF-F7E2-49AC-BD33-59EDD2FE5A93}.Release|Any CPU.Build.0 = Release|Any CPU
+		{24CC42A2-F2D9-4255-8DA8-43891D23745C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{24CC42A2-F2D9-4255-8DA8-43891D23745C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{24CC42A2-F2D9-4255-8DA8-43891D23745C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{24CC42A2-F2D9-4255-8DA8-43891D23745C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

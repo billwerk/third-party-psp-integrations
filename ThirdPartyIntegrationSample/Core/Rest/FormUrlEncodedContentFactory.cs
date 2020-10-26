@@ -2,6 +2,7 @@
 using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
+using Billwerk.Payment.SDK.Rest;
 using Core.Interfaces;
 
 namespace Core.Rest

@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using Billwerk.Payment.SDK.DTO;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
+using Billwerk.Payment.SDK.Interfaces;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Persistence.Models
 {
-    public class PaymentTransaction : PaymentTransactionBase
+    public class PaymentTransaction : PaymentTransactionBase, IPaymentTransaction
     {
         [BsonIgnoreIfNull]
         public ObjectId? PreauthTransactionId { get; set; }

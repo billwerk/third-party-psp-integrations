@@ -1,4 +1,5 @@
 ﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
+using Business.Enums;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,9 +10,11 @@ namespace Web.Controllers
     [ApiController]
     public class PaymentsSettingsController : ApiControllerBase
     {
-        private readonly IExternalSettingsValidator _externalSettingsValidator;
+        //TODO move to api/payone
+        
+        private readonly IExternalSettingsValidatorWrapper _externalSettingsValidator;
 
-        public PaymentsSettingsController(IExternalSettingsValidator externalSettingsValidator, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) 
+        public PaymentsSettingsController(IExternalSettingsValidatorWrapper externalSettingsValidator, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) 
             : base(paymentServiceMethodsExecutor)
         {
             _externalSettingsValidator = externalSettingsValidator;
@@ -21,7 +24,7 @@ namespace Web.Controllers
         [Route("api/validateSettings")]
         public ObjectResult Validate(ExternalIntegrationValidateSettingsRequestDTO dto)
         {
-            var result = _externalSettingsValidator.Validate(dto);
+            var result = _externalSettingsValidator.Validate(PaymentServiceProvider.PayOne, dto);
             if (result.Errors != null && result.Errors.Count > 0)
             {
                 return BadRequest(result);

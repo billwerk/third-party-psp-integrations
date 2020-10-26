@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Billwerk.Payment.PayOne.Model;
+using Billwerk.Payment.PayOne.Services;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
@@ -12,11 +14,13 @@ using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
 using Billwerk.Payment.SDK.Enums;
 using Billwerk.Payment.SDK.Enums.ExternalIntegration;
+using Billwerk.Payment.SDK.Interfaces;
+using Business.Enums;
 using Business.Helpers;
 using Business.Interfaces;
-using Business.PayOne.Model;
 using MongoDB.Bson;
 using Business.Models;
+using Business.PayOne.Services;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -33,26 +37,37 @@ namespace Business.Services
         private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
         private const string RefundAction = "refund";
 
-        private readonly IPaymentService _paymentService;
+        private readonly PayOnePaymentService _payOnePaymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IRecurringTokenService _recurringTokenService;
         private readonly IRecurringTokenEncoder<RecurringToken> _recurringTokenEncoder;
         private readonly ILogger<PaymentServiceWrapper> _logger;
 
-        public PaymentServiceWrapper(IPaymentService paymentService, IPaymentTransactionService paymentTransactionService,
+        public PaymentServiceWrapper(PayOnePaymentService payOnePaymentService, IPaymentTransactionService paymentTransactionService,
             IRecurringTokenService recurringTokenService, IRecurringTokenEncoder<RecurringToken> recurringTokenEncoder,
             ILogger<PaymentServiceWrapper> logger)
         {
-            _paymentService = paymentService;
+            _payOnePaymentService = payOnePaymentService;
             _paymentTransactionService = paymentTransactionService;
             _recurringTokenService = recurringTokenService;
             _recurringTokenEncoder = recurringTokenEncoder;
             _logger = logger;
         }
 
-        public async Task<ExternalPaymentTransactionDTO> SendPayment(ExternalPaymentRequestDTO paymentDto)
+        private IPaymentService GetPaymentService(PaymentServiceProvider provider)
         {
-            var externalPaymentRequest = new ExternalPaymentRequest
+            switch (provider)
+            {
+                case PaymentServiceProvider.PayOne:
+                    return _payOnePaymentService;
+                default:
+                    throw new NotSupportedException($"Provide={provider} is not supported!");
+            }            
+        }
+        
+        public async Task<ExternalPaymentTransactionDTO> SendPayment(PaymentServiceProvider provider, ExternalPaymentRequestDTO paymentDto)
+        {
+            var externalPaymentRequest = new ExternalPaymentRequestWrapperDTO
             {
                 PaymentRequestDto = paymentDto
             };
@@ -63,7 +78,7 @@ namespace Business.Services
             resultOfPopulation = TryToPopulateRecurringToken(externalPaymentRequest.PaymentRequestDto);
             if (resultOfPopulation != null) return resultOfPopulation;
 
-            var paymentResult = await _paymentService.SendPayment(externalPaymentRequest);
+            var paymentResult = await GetPaymentService(provider).SendPayment(externalPaymentRequest);
 
             var mappedPaymentTransaction = paymentResult.PaymentDto.ToEntity();
             mappedPaymentTransaction.SequenceNumber = sequenceNumber;
@@ -83,7 +98,7 @@ namespace Business.Services
             return paymentResult.PaymentDto;
         }
 
-        public async Task<ExternalRefundTransactionDTO> SendRefund(string transactionId, ExternalRefundRequestDTO dto)
+        public async Task<ExternalRefundTransactionDTO> SendRefund(PaymentServiceProvider provider, string transactionId, ExternalRefundRequestDTO dto)
         {
             var targetTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId) as PaymentTransaction;
             if (targetTransaction == null)
@@ -94,7 +109,7 @@ namespace Business.Services
                 };
             }
 
-            var refundResult = await _paymentService.SendRefund(dto, targetTransaction);
+            var refundResult = await GetPaymentService(provider).SendRefund(dto, targetTransaction);
 
             if (refundResult.Status == PaymentTransactionNewStatus.Succeeded)
             {
@@ -116,7 +131,7 @@ namespace Business.Services
             return refundResult;
         }
 
-        public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
+        public async Task<ExternalPreauthTransactionDTO> SendPreauth(PaymentServiceProvider provider, ExternalPreauthRequestDTO dto)
         {
             var resultOfPopulation = TryToPopulateRecurringToken(dto);
             if (resultOfPopulation != null)
@@ -125,7 +140,7 @@ namespace Business.Services
                     Error = resultOfPopulation.Error
                 };
 
-            var preauthResult = await _paymentService.SendPreauth(dto);
+            var preauthResult = await GetPaymentService(provider).SendPreauth(dto);
 
             preauthResult.RecurringToken = TransformAndUpdateRecurringToken(preauthResult.RecurringToken);
 
@@ -143,7 +158,7 @@ namespace Business.Services
             return preauthResult;
         }
 
-        public Task<ExternalPaymentTransactionDTO> FetchPayment(string transactionId)
+        public Task<ExternalPaymentTransactionDTO> FetchPayment(PaymentServiceProvider provider, string transactionId)
         {
             if (string.IsNullOrEmpty(transactionId))
             {
@@ -165,7 +180,7 @@ namespace Business.Services
             });
         }
 
-        public Task<ExternalRefundTransactionDTO> FetchRefund(string transactionId)
+        public Task<ExternalRefundTransactionDTO> FetchRefund(PaymentServiceProvider provider, string transactionId)
         {
             if (string.IsNullOrEmpty(transactionId))
             {
@@ -187,7 +202,7 @@ namespace Business.Services
             });
         }
 
-        public Task<ExternalPreauthTransactionDTO> FetchPreauth(string transactionId)
+        public Task<ExternalPreauthTransactionDTO> FetchPreauth(PaymentServiceProvider provider, string transactionId)
         {
             if (string.IsNullOrEmpty(transactionId))
             {
@@ -209,12 +224,12 @@ namespace Business.Services
             });
         }
 
-        public async Task<ExternalPaymentCancellationDTO> SendCancellation(string transactionId)
+        public async Task<ExternalPaymentCancellationDTO> SendCancellation(PaymentServiceProvider provider, string transactionId)
         {
             var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
             if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
             {
-                return await _paymentService.SendCancellation(preauthTransaction.ToRequestDto(), preauthTransaction);
+                return await GetPaymentService(provider).SendCancellation(preauthTransaction.ToRequestDto(), preauthTransaction);
             }
 
             return new ExternalPaymentCancellationDTO
@@ -406,7 +421,7 @@ namespace Business.Services
             return null;
         }
 
-        private ExternalPaymentTransactionDTO TryToPopulatePreauthRequestDto(ExternalPaymentRequest externalPaymentRequest,
+        private ExternalPaymentTransactionDTO TryToPopulatePreauthRequestDto(ExternalPaymentRequestWrapperDTO externalPaymentRequest,
             out int sequenceNumber)
         {
             sequenceNumber = 0;

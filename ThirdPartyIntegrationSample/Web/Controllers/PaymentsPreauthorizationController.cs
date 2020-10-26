@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Business;
+using Business.Enums;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,10 @@ namespace Web.Controllers
     [ApiController]
     public class PaymentsPreauthorizationController : ApiControllerBase
     {
+        //TODO move to api/payone
+        
+        
+        //TODO Remove checkout service as not used
         private readonly ICheckoutService _checkoutService;
         private readonly IPaymentServiceWrapper _paymentService;
 
@@ -32,14 +37,14 @@ namespace Web.Controllers
         [Route("api/preauth")]
         public async Task<ObjectResult> Preauthorize([FromBody] ExternalPreauthRequestDTO dto)
         {
-            return BuildResponse(await _paymentService.SendPreauth(dto));
+            return BuildResponse(await _paymentService.SendPreauth(PaymentServiceProvider.PayOne, dto));
         }
 
         [HttpGet]
         [Route("api/preauth/{id}")]
         public async Task<ObjectResult> Get(string id)
         {
-            return BuildResponse(await _paymentService.FetchPreauth(id));
+            return BuildResponse(await _paymentService.FetchPreauth(PaymentServiceProvider.PayOne, id));
         }
     }
 }
