@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Billwerk.Payment.PayOne\Billwerk.Payment.PayOne.csproj" />
       <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
 

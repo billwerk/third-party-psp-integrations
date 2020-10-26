@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
+using Billwerk.Payment.SDK.Interfaces;
 
 namespace Business.Interfaces
 {

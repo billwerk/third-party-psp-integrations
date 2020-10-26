@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http;
+using Billwerk.Payment.SDK.Interfaces;
+using Billwerk.Payment.SDK.Rest;
 using Business.Interfaces;
 using Business.Models;
 using Core.Interfaces;

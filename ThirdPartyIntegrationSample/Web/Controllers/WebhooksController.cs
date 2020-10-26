@@ -6,6 +6,8 @@ namespace Web.Controllers
     [ApiController]
     public class WebhooksController : ApiControllerBase
     {
+        //TODO move to api/payone
+        
         private readonly IPaymentServiceWrapper _paymentService;
 
         public WebhooksController(IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor,

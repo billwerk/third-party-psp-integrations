@@ -1,9 +1,13 @@
 using System.Collections.Generic;
 using System.Net.Http;
+using Billwerk.Payment.PayOne;
+using Billwerk.Payment.PayOne.Interfaces;
+using Billwerk.Payment.PayOne.Services;
+using Billwerk.Payment.PayOne.Services;
+using Billwerk.Payment.SDK.Interfaces;
+using Business.Factory;
 using Business.Interfaces;
 using Business.PayOne;
-using Business.PayOne.Factories;
-using Business.PayOne.Interfaces;
 using Business.PayOne.Services;
 using Business.Services;
 using Core.Interfaces;
@@ -60,23 +64,33 @@ namespace Web {
             services.AddSingleton(MongoClientFactory.Create(services.BuildServiceProvider().GetService<IGlobalSettings>().MongoHost));
             services.AddScoped<IMongoContext, MongoContext>();
             services.AddScoped<IUserService, UserService>();
-            services.AddSingleton<IExternalIntegrationInfoFactory, PayOneExternalIntegrationInfoFactory>();
-            services.AddScoped<IExternalSettingsValidator, PayOneExternalSettingsValidator>();
+            services.AddSingleton<IExternalIntegrationInfoWrapper, ExternalIntegrationInfoWrapper>();
+            services.AddScoped<IExternalSettingsValidatorWrapper, ExternalSettingsValidatorWrapper>();
+            services.AddScoped<IPaymentServiceWrapper, PaymentServiceWrapper>();
+            
+            
+            //PayOne
+            services.AddScoped<IPayOneWrapper, PayOneWrapper>();
+            services.AddScoped<IPayOneInitialTokenDecoder, PayOneInitialTokenDecoder>();
+            services.AddScoped<IRecurringTokenEncoder<IRecurringToken>, PayOneRecurringTokenEncoder>();
+            //PayOne
+            
             services.AddScoped<IEncoder, Encoder>();
             services.AddScoped<ITetheredPaymentInformationEncoder, TetheredPaymentInformationEncoder>();
-            services.AddScoped<IPaymentService, PaymentService>();
+            
             services.AddScoped<ICheckoutService, CheckoutService>();
             services.AddScoped<IPaymentServiceMethodsExecutor, PaymentServiceMethodsExecutor>();
-            services.AddScoped<IInitialTokenDecoder, InitialTokenDecoder>();
-            services.AddScoped<IPaymentServiceWrapper, PaymentServiceWrapper>();
+            
+            
             services.AddScoped<IPaymentTransactionService, PaymentTransactionService>();
-            services.AddScoped<IPayOneWrapper, PayOneWrapper>();
+            
             services.AddScoped<IRestClient, RestClient>();
+            services.AddScoped<IJsonConvertService, JsonConvertService>();
             services.AddScoped<HttpClient, HttpClient>();
             services.AddSingleton<IHttpContentFactory, FormUrlEncodedContentFactory>();
             services.AddSingleton<IHttpContentFactory, JsonStringContentFactory>();
             services.AddSingleton<IHttpClientHandlerFactory, HttpClientHandlerFactory>();
-            services.AddScoped<IRecurringTokenEncoder<RecurringToken>, PayOneRecurringTokenEncoder>();
+            
             services.AddScoped<IRecurringTokenService, RecurringTokenService>();
             services.AddScoped<IWebhookService, WebhookService>();
 

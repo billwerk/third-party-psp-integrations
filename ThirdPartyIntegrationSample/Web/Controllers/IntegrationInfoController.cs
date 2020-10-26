@@ -1,4 +1,5 @@
 ﻿using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
+using Business.Enums;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,18 +10,20 @@ namespace Web.Controllers
     [ApiController]
     public class IntegrationInfoController : ApiControllerBase
     {
-        private readonly IExternalIntegrationInfoFactory _externalIntegrationInfoFactory;
+        //TODO move to api/payone/integrationInfo
+        
+        private readonly IExternalIntegrationInfoWrapper _externalIntegrationInfoWrapper;
 
-        public IntegrationInfoController(IExternalIntegrationInfoFactory externalIntegrationInfoFactory, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) : base(paymentServiceMethodsExecutor)
+        public IntegrationInfoController(IExternalIntegrationInfoWrapper externalIntegrationInfoWrapper, IPaymentServiceMethodsExecutor paymentServiceMethodsExecutor) : base(paymentServiceMethodsExecutor)
         {
-            _externalIntegrationInfoFactory = externalIntegrationInfoFactory;
+            _externalIntegrationInfoWrapper = externalIntegrationInfoWrapper;
         }
 
         [HttpGet]
         [Route("api/integrationInfo")]
         public ExternalIntegrationInfoDTO Get()
         {
-            return _externalIntegrationInfoFactory.Create();
+            return _externalIntegrationInfoWrapper.Create(PaymentServiceProvider.PayOne);
         }
     }
 }

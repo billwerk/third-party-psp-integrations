@@ -20,4 +20,8 @@
       </Reference>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Billwerk.Payment.PayOne\Billwerk.Payment.PayOne.csproj" />
+    </ItemGroup>
+
 </Project>
