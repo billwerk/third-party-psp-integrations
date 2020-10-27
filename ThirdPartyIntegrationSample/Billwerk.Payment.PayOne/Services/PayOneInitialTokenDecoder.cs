@@ -1,13 +1,13 @@
 ﻿using Billwerk.Payment.PayOne.Interfaces;
+using Billwerk.Payment.SDK.Interfaces.Models;
 using Business.Models;
 using Newtonsoft.Json;
-using Persistence.Models;
 
 namespace Billwerk.Payment.PayOne.Services
 {
     public class PayOneInitialTokenDecoder : IPayOneInitialTokenDecoder
     {
-        public PspBearer Decode(string data)
+        public IPspBearer Decode(string data)
         {
             return JsonConvert.DeserializeObject<PayOnePspBearer>(data);
         }

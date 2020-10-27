@@ -12,9 +12,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="Billwerk.Payment.SDK, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-        <HintPath>..\..\Libs\Billwerk.Payment.SDK.dll</HintPath>
-      </Reference>
       <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
         <HintPath>C:\Windows\Microsoft.NET\assembly\GAC_MSIL\Newtonsoft.Json\v4.0_11.0.0.0__30ad4fe6b2a6aeed\Newtonsoft.Json.dll</HintPath>
       </Reference>

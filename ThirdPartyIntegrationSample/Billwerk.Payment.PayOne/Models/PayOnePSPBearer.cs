@@ -1,9 +1,9 @@
 ﻿using System;
-using Persistence.Models;
+using Billwerk.Payment.SDK.Interfaces.Models;
 
 namespace Billwerk.Payment.PayOne
 {
-    public class PayOnePspBearer : PspBearer
+    public class PayOnePspBearer : IPspBearer
     {
         public int ExpiryMonth { get; set; }
 

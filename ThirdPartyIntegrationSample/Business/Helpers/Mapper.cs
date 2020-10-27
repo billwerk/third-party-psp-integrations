@@ -1,7 +1,11 @@
+using System;
+using Billwerk.Payment.PayOne.Interfaces;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
+using Billwerk.Payment.SDK.Interfaces;
+using MongoDB.Bson;
 using Persistence.Models;
 
 namespace Business.Helpers
@@ -127,6 +131,27 @@ namespace Business.Helpers
             };
 
             return transaction;
+        }
+
+        public static RecurringToken ToRecurringToken(this IRecurringToken token)
+        {
+            if (token is IPayOneRecurringToken t)
+            {
+                var result = new RecurringTokenPayOne
+                {
+                    PaymentBearer = t.PaymentBearer,
+                    PspBearer = t.PspBearer,
+                    UserId = t.UserId
+                };
+                if (!string.IsNullOrEmpty(t.Token))
+                {
+                    result.ForceId(ObjectId.Parse(t.Token));
+                }
+
+                return result;
+            }
+            throw new NotSupportedException($"Token type={token.GetType()} is not supported!");
+
         }
     }
 }
