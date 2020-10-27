@@ -3,11 +3,9 @@ using System.Net.Http;
 using Billwerk.Payment.PayOne;
 using Billwerk.Payment.PayOne.Interfaces;
 using Billwerk.Payment.PayOne.Services;
-using Billwerk.Payment.PayOne.Services;
 using Billwerk.Payment.SDK.Interfaces;
 using Business.Factory;
 using Business.Interfaces;
-using Business.PayOne;
 using Business.PayOne.Services;
 using Business.Services;
 using Core.Interfaces;
@@ -72,7 +70,6 @@ namespace Web {
             //PayOne
             services.AddScoped<IPayOneWrapper, PayOneWrapper>();
             services.AddScoped<IPayOneInitialTokenDecoder, PayOneInitialTokenDecoder>();
-            services.AddScoped<IRecurringTokenEncoder<IRecurringToken>, PayOneRecurringTokenEncoder>();
             //PayOne
             
             services.AddScoped<IEncoder, Encoder>();
@@ -85,7 +82,6 @@ namespace Web {
             services.AddScoped<IPaymentTransactionService, PaymentTransactionService>();
             
             services.AddScoped<IRestClient, RestClient>();
-            services.AddScoped<IJsonConvertService, JsonConvertService>();
             services.AddScoped<HttpClient, HttpClient>();
             services.AddSingleton<IHttpContentFactory, FormUrlEncodedContentFactory>();
             services.AddSingleton<IHttpContentFactory, JsonStringContentFactory>();

@@ -1,13 +1,14 @@
 ﻿using Billwerk.Payment.SDK.DTO;
+using Billwerk.Payment.SDK.Interfaces;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Persistence.Models
 {
-    public class RecurringToken : DbObject
+    [BsonDiscriminator(Required = true)]
+    [BsonKnownTypes(typeof(RecurringTokenPayOne))]
+    public abstract class RecurringToken : DbObject, IRecurringToken
     {
-        public string UserId { get; set; }
-        
-        public PaymentBearerDTO PaymentBearer { get; set; }
-        
-        public PspBearer PspBearer { get; set; }
+        [BsonIgnore]
+        public string Token => Id.ToString();
     }
 }

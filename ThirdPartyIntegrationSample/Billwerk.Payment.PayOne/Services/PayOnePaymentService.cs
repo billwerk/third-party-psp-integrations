@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Billwerk.Payment.PayOne.Interfaces;
 using Billwerk.Payment.PayOne.Model;
 using Billwerk.Payment.PayOne.Model.Requests;
 using Billwerk.Payment.PayOne.Model.Responses;
+using Billwerk.Payment.PayOne.Models;
 using Billwerk.Payment.SDK.DTO;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
@@ -15,32 +17,28 @@ using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
 using Billwerk.Payment.SDK.Enums;
 using Billwerk.Payment.SDK.Interfaces;
-using Business.Models;
+using Billwerk.Payment.SDK.Services;
 using Microsoft.Extensions.Logging;
-using Persistence.Models;
 
 namespace Billwerk.Payment.PayOne.Services
 {
-    public class PayOnePaymentService : PayOnePaymentServiceBase, IPaymentService
+    public class PayOnePaymentService : ExternalPspServiceBase, IPaymentService
     {
         private const string PayOneDateFormat = "yyyyMMdd";
 
         private readonly ILogger<PayOnePaymentService> _logger;
         private readonly IPayOneWrapper _payOneWrapper;
-        
         private readonly IPayOneInitialTokenDecoder _initialTokenDecoder;
-        private readonly IRecurringTokenEncoder<IRecurringToken> _recurringTokenEncoder;
+        
 
-        public PayOnePaymentService(ILogger<PayOnePaymentService> logger, IPayOneWrapper payOneWrapper,
-            IPayOneInitialTokenDecoder initialTokenDecoder, IRecurringTokenEncoder<IRecurringToken> recurringTokenEncoder)
+        public PayOnePaymentService(ILogger<PayOnePaymentService> logger, IPayOneWrapper payOneWrapper, IPayOneInitialTokenDecoder initialTokenDecoder)
         {
             _logger = logger;
             _payOneWrapper = payOneWrapper;
             _initialTokenDecoder = initialTokenDecoder;
-            _recurringTokenEncoder = recurringTokenEncoder;
         }
 
-        public async Task<ExternalPaymentResponseWrapperDTO> SendPayment(ExternalPaymentRequestWrapperDTO paymentRequest)
+        public async Task<ExternalPaymentResponseWrapperDTO> SendPayment(ExternalPaymentRequestWrapperDTO paymentRequest, IRecurringToken token)
         {
             var isCapture =
                 !string.IsNullOrWhiteSpace(paymentRequest.PaymentRequestDto.PaymentMeansReference.PreauthTransactionId) &&
@@ -50,7 +48,7 @@ namespace Billwerk.Payment.PayOne.Services
                 return await ProcessCaptureTransactionAsync(paymentRequest);
             }
 
-            return await ProcessTransaction(paymentRequest);
+            return await ProcessTransaction(paymentRequest, token);
         }
 
         public async Task<ExternalRefundTransactionDTO> SendRefund(ExternalRefundRequestDTO dto, IPaymentTransaction targetTransaction)
@@ -78,22 +76,22 @@ namespace Billwerk.Payment.PayOne.Services
             return BuildAndPopulateExternalRefundTransactionDto(dto, response);
         }
 
-        public async Task<ExternalPreauthTransactionDTO> SendPreauth(ExternalPreauthRequestDTO dto)
+        public async Task<ExternalPaymentResponseWrapperDTO> SendPreauth(ExternalPreauthRequestDTO dto, IRecurringToken token)
         {
             var payer = dto.PayerData;
             var initialPayment = !string.IsNullOrWhiteSpace(dto.PaymentMeansReference.InitialToken);
             var settings = GetPspSettings<PayOnePSPSettings>(dto.MerchantSettings);
             PayOnePspBearer tetheredPaymentInformation;
             string userId = null;
-            IRecurringToken recurringToken = null;
+            IPayOneRecurringToken recurringToken = null;
             if (initialPayment)
             {
                 tetheredPaymentInformation = _initialTokenDecoder.Decode(dto.PaymentMeansReference.InitialToken) as PayOnePspBearer;
             }
             else
             {
-                recurringToken = _recurringTokenEncoder.Decrypt(dto.PaymentMeansReference.RecurringToken);
-                tetheredPaymentInformation = recurringToken.PspBearer as PayOnePspBearer;
+                recurringToken = token as IPayOneRecurringToken;
+                tetheredPaymentInformation = recurringToken.PspBearer;
                 userId = recurringToken.UserId;
             }
             
@@ -164,34 +162,35 @@ namespace Billwerk.Payment.PayOne.Services
             throw new NotImplementedException();
         }
 
-        private ExternalPreauthTransactionDTO BuildAndPopulateExternalPreauthTransactionDto(ExternalPreauthRequestDTO dto,
-            PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation, IRecurringToken recurringToken)
+        private ExternalPaymentResponseWrapperDTO BuildAndPopulateExternalPreauthTransactionDto(ExternalPreauthRequestDTO dto,
+            PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation, IPayOneRecurringToken recurringToken)
         {
             var role = dto.PaymentMeansReference.Role;
-            var result = BuildAndPopulateExternalTransactionBaseDto<ExternalPreauthTransactionDTO>(dto, response.TxId);
+            var preauth = BuildAndPopulateExternalTransactionBaseDto<ExternalPreauthTransactionDTO>(dto, response.TxId);
+            var result = new ExternalPaymentResponseWrapperDTO(preauth, null);
 
-            result.AuthorizedAmount = dto.RequestedAmount;
+            preauth.AuthorizedAmount = dto.RequestedAmount;
             //ToDo: Should be clarified
-            result.ExpiresAt = DateTimeOffset.UtcNow.AddYears(1);
-            result.Bearer = GetPaymentBearerDto(tetheredPaymentInformation, role);
+            preauth.ExpiresAt = DateTimeOffset.UtcNow.AddYears(1);
+            preauth.Bearer = GetPaymentBearerDto(tetheredPaymentInformation, role);
 
-            PopulateTransactionStatus(response, result);
+            PopulateTransactionStatus(response, preauth);
 
             if (!string.IsNullOrEmpty(response.RedirectUrl))
             {
-                result.RedirectUrl = response.RedirectUrl;
+                preauth.RedirectUrl = response.RedirectUrl;
             }
 
-            if (result.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
+            if (preauth.Status == PaymentTransactionNewStatus.Succeeded && role == PaymentProviderRole.OnAccount)
             {
-                result.Status = PaymentTransactionNewStatus.Pending;
+                preauth.Status = PaymentTransactionNewStatus.Pending;
             }
 
-            if (result.Status == PaymentTransactionNewStatus.Failed) return result;
+            if (preauth.Status == PaymentTransactionNewStatus.Failed) return result;
 
-            UpdateMandateIfRequired(result.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature, response.Creditor_Identifier);
+            UpdateMandateIfRequired(preauth.Bearer, role, response.Mandate_Identification, response.Mandate_Dateofsignature, response.Creditor_Identifier);
 
-            PopulateRecurringToken(response, tetheredPaymentInformation, recurringToken, result);
+            result.RecurringToken=PopulateRecurringToken(response, tetheredPaymentInformation, recurringToken, preauth);
 
             return result;
         }
@@ -205,16 +204,14 @@ namespace Billwerk.Payment.PayOne.Services
             return result;
         }
 
-        private void PopulateRecurringToken(PreauthorizationResponse response, PspBearer tetheredPaymentInformation,
-            IRecurringToken recurringToken, ExternalPreauthTransactionDTO result)
+        private IPayOneRecurringToken PopulateRecurringToken(PreauthorizationResponse response, PayOnePspBearer tetheredPaymentInformation,
+            IPayOneRecurringToken recurringToken, ExternalPreauthTransactionDTO result)
         {
-            //TODO remove Activator
-            recurringToken ??= Activator.CreateInstance(typeof(IRecurringToken)) as IRecurringToken;
+            recurringToken ??= new PayOneRecurringToken();
             recurringToken.UserId = response.UserId;
             recurringToken.PaymentBearer = result.Bearer;
             recurringToken.PspBearer = tetheredPaymentInformation;
-
-            result.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
+            return recurringToken;
         }
 
         private static PaymentBearerDTO GetPaymentBearerDto(PayOnePspBearer payOnePspBearer, PaymentProviderRole role)
@@ -482,7 +479,7 @@ namespace Billwerk.Payment.PayOne.Services
                 result.Status = PaymentTransactionNewStatus.Pending;
             }
 
-            var captureResult = new ExternalPaymentResponseWrapperDTO(result);
+            var captureResult = new ExternalPaymentResponseWrapperDTO(null, result);
             if (result.Status == PaymentTransactionNewStatus.Failed) 
                 return captureResult;
 
@@ -497,12 +494,15 @@ namespace Billwerk.Payment.PayOne.Services
             return captureResult;
         }
 
-        private async Task<ExternalPaymentResponseWrapperDTO> ProcessTransaction(ExternalPaymentRequestWrapperDTO paymentRequest)
+        
+        
+        private async Task<ExternalPaymentResponseWrapperDTO> ProcessTransaction(ExternalPaymentRequestWrapperDTO paymentRequest, IRecurringToken token)
         {
             var settings = GetPspSettings<PayOnePSPSettings>(paymentRequest.PaymentRequestDto.MerchantSettings);
             var paymentDto = paymentRequest.PaymentRequestDto;
             var role = paymentDto.PaymentMeansReference.Role;
-            var recurringToken = _recurringTokenEncoder.Decrypt(paymentDto.PaymentMeansReference.RecurringToken);
+            var recurringToken = token as IPayOneRecurringToken;
+
             var request = new Authorization(false, settings)
             {
                 Amount = ((int) (paymentDto.RequestedAmount * 100)).ToString(CultureInfo.InvariantCulture),
@@ -540,7 +540,7 @@ namespace Billwerk.Payment.PayOne.Services
                 result.Status = PaymentTransactionNewStatus.Pending;
             }
 
-            var recurringResult = new ExternalPaymentResponseWrapperDTO(result);
+            var recurringResult = new ExternalPaymentResponseWrapperDTO(null, result);
             
             if (result.Status == PaymentTransactionNewStatus.Failed) 
                 return recurringResult;
@@ -549,11 +549,14 @@ namespace Billwerk.Payment.PayOne.Services
 
             PopulatePspDueDate(recurringResult.PaymentDto, role, response.Clearing_Date);
 
-            if (response.UserId == recurringToken.UserId) 
+            //TODO Why do we skip filling RecurringToken in response with this condition?
+            if (response.UserId == recurringToken.UserId)
+            {
                 return recurringResult;
-            
+            }
+
             recurringToken.UserId = response.UserId;
-            recurringResult.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
+            recurringResult.RecurringToken = recurringToken;
 
             return recurringResult;
         }

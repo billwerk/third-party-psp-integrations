@@ -16,7 +16,7 @@ namespace Persistence.Models
         [BsonIgnoreIfDefault]
         public ObjectId Id { get; private set; }
 
-        private void ForceId(ObjectId id) => Id = id;
+        public void ForceId(ObjectId id) => Id = id;
 
         public void ForceId()
         {

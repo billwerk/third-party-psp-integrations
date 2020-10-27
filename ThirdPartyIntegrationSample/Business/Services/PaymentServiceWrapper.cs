@@ -19,8 +19,6 @@ using Business.Enums;
 using Business.Helpers;
 using Business.Interfaces;
 using MongoDB.Bson;
-using Business.Models;
-using Business.PayOne.Services;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -39,17 +37,14 @@ namespace Business.Services
         private readonly PayOnePaymentService _payOnePaymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IRecurringTokenService _recurringTokenService;
-        private readonly IRecurringTokenEncoder<RecurringToken> _recurringTokenEncoder;
         private readonly ILogger<PaymentServiceWrapper> _logger;
 
         public PaymentServiceWrapper(PayOnePaymentService payOnePaymentService, IPaymentTransactionService paymentTransactionService,
-            IRecurringTokenService recurringTokenService, IRecurringTokenEncoder<RecurringToken> recurringTokenEncoder,
-            ILogger<PaymentServiceWrapper> logger)
+            IRecurringTokenService recurringTokenService, ILogger<PaymentServiceWrapper> logger)
         {
             _payOnePaymentService = payOnePaymentService;
             _paymentTransactionService = paymentTransactionService;
             _recurringTokenService = recurringTokenService;
-            _recurringTokenEncoder = recurringTokenEncoder;
             _logger = logger;
         }
 
@@ -72,12 +67,21 @@ namespace Business.Services
             };
 
             var resultOfPopulation = TryToPopulatePreauthRequestDto(externalPaymentRequest, out var sequenceNumber);
-            if (resultOfPopulation != null) return resultOfPopulation;
+            if (resultOfPopulation != null)
+            {
+                //means error
+                return resultOfPopulation;
+            }
 
-            resultOfPopulation = TryToPopulateRecurringToken(externalPaymentRequest.PaymentRequestDto);
-            if (resultOfPopulation != null) return resultOfPopulation;
+            if (!GetRecurringTokenByRequest(paymentDto, out var recurringToken, out var error))
+            {
+                return new ExternalPaymentTransactionDTO
+                {
+                    Error = error
+                };
+            }
 
-            var paymentResult = await GetPaymentService(provider).SendPayment(externalPaymentRequest);
+            var paymentResult = await GetPaymentService(provider).SendPayment(externalPaymentRequest, recurringToken);
 
             var mappedPaymentTransaction = paymentResult.PaymentDto.ToEntity();
             mappedPaymentTransaction.SequenceNumber = sequenceNumber;
@@ -126,29 +130,35 @@ namespace Business.Services
 
         public async Task<ExternalPreauthTransactionDTO> SendPreauth(PaymentServiceProvider provider, ExternalPreauthRequestDTO dto)
         {
-            var resultOfPopulation = TryToPopulateRecurringToken(dto);
-            if (resultOfPopulation != null)
-                return new ExternalPreauthTransactionDTO
+            IRecurringToken recurringToken = null;
+            if (string.IsNullOrWhiteSpace(dto.PaymentMeansReference.InitialToken))
+            {
+                if (!GetRecurringTokenByRequest(dto, out recurringToken, out var error))
                 {
-                    Error = resultOfPopulation.Error
-                };
+                    return new ExternalPreauthTransactionDTO
+                    {
+                        Error = error
+                    };
+                }
+            }
 
-            var preauthResult = await GetPaymentService(provider).SendPreauth(dto);
+            var preauthResult = await GetPaymentService(provider).SendPreauth(dto, recurringToken);
 
-            preauthResult.RecurringToken = TransformAndUpdateRecurringToken(preauthResult.RecurringToken);
+            var preauthDto=preauthResult.PreauthDto;
+            preauthDto.RecurringToken = TransformAndUpdateRecurringToken(preauthResult.RecurringToken);
 
-            var preauthTransaction = preauthResult.ToEntity();
+            var preauthTransaction = preauthDto.ToEntity();
 
             preauthTransaction.SequenceNumber = 0;
             preauthTransaction.MerchantSettings = dto.MerchantSettings;
             preauthTransaction.Role = dto.PaymentMeansReference.Role;
             preauthTransaction.WebhookTarget = dto.WebhookTarget;
 
-            preauthResult.ExternalTransactionId = preauthTransaction.Id.ToString();
+            preauthDto.ExternalTransactionId = preauthTransaction.Id.ToString();
 
             _paymentTransactionService.Create(preauthTransaction);
 
-            return preauthResult;
+            return preauthDto;
         }
 
         public Task<ExternalPaymentTransactionDTO> FetchPayment(PaymentServiceProvider provider, string transactionId)
@@ -372,30 +382,37 @@ namespace Business.Services
             };
         }
 
-        private ExternalPaymentTransactionDTO TryToPopulateRecurringToken(
-            ExternalPaymentTransactionBasePaymentRequestDTO requestDto)
+        private bool GetRecurringTokenByRequest(ExternalPaymentTransactionBasePaymentRequestDTO requestDto, out IRecurringToken recurringToken, out ExternalIntegrationErrorDTO error)
         {
+            //TODO reimplement throwing exceptions
             var externalRecurringToken = requestDto.PaymentMeansReference.RecurringToken;
-            if (string.IsNullOrWhiteSpace(externalRecurringToken)) return null;
-
-            var recurringToken = _recurringTokenService.SingleByIdOrDefault(ObjectId.Parse(externalRecurringToken));
-            if (recurringToken == null)
+            error = null;
+            recurringToken = null;
+            if (string.IsNullOrWhiteSpace(externalRecurringToken))
             {
-                return new ExternalPaymentTransactionDTO
+                error = new ExternalIntegrationErrorDTO
                 {
-                    Error = new ExternalIntegrationErrorDTO
-                    {
-                        ErrorCode = PaymentErrorCode.InvalidPreconditions,
-                        ErrorMessage = $"Unknown recurringToken {externalRecurringToken}"
-                    }
+                    ErrorCode = PaymentErrorCode.InvalidPreconditions,
+                    ErrorMessage = $"Token is empty"
                 };
+                return false;
             }
 
-            requestDto.PaymentMeansReference.RecurringToken = _recurringTokenEncoder.Encrypt(recurringToken);
-
-            return null;
+            recurringToken = _recurringTokenService.SingleByIdOrDefault(ObjectId.Parse(externalRecurringToken));
+            if (recurringToken == null)
+            {
+                error = new ExternalIntegrationErrorDTO
+                {
+                    ErrorCode = PaymentErrorCode.InvalidPreconditions,
+                    ErrorMessage = $"Unknown recurringToken {externalRecurringToken}"
+                };
+                return false;
+            }
+            
+            return true;
         }
 
+        //TODO Refactor this: it's not easy to understand logic
         private ExternalPaymentTransactionDTO TryToPopulatePreauthRequestDto(ExternalPaymentRequestWrapperDTO externalPaymentRequest,
             out int sequenceNumber)
         {
@@ -427,14 +444,14 @@ namespace Business.Services
             return null;
         }
 
-        private string TransformAndUpdateRecurringToken(string recurringTokenHash)
+        private string TransformAndUpdateRecurringToken(IRecurringToken token)
         {
-            if (string.IsNullOrWhiteSpace(recurringTokenHash))
+            if (token == null)
             {
                 return null;
             }
 
-            var recurringToken = _recurringTokenEncoder.Decrypt(recurringTokenHash);
+            var recurringToken = token.ToRecurringToken();
             if (recurringToken.Id == ObjectId.Empty)
             {
                 _recurringTokenService.Create(recurringToken);

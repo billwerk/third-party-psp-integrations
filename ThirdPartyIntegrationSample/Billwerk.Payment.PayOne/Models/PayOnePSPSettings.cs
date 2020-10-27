@@ -4,11 +4,12 @@ using System.Linq;
 using Billwerk.Payment.PayOne.Enums;
 using Billwerk.Payment.PayOne.Helpers;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
+using Billwerk.Payment.SDK.Models;
 using Business;
 
 namespace Billwerk.Payment.PayOne
 {
-    public class PayOnePSPSettings : PSPSettings
+    public class PayOnePSPSettings : ExternalPspSettings
     {
         public PayOnePSPSettings(IList<MerchantSettingValue> merchantSettings) 
             : base(merchantSettings)
