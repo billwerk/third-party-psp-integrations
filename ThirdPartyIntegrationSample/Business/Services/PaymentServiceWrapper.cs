@@ -253,31 +253,45 @@ namespace Business.Services
         private bool AnalyzeSequenceNumber(TransactionStatus ts, PaymentTransactionBase paymentTransaction, bool wasSkipped,
             out ObjectResult objectResult)
         {
+            var wasUpdated = false;
             objectResult = null;
-            if (int.TryParse(ts.Sequencenumber, out var sequenceNumber) && sequenceNumber > 0)
+
+            if (!int.TryParse(ts.Sequencenumber, out var sequenceNumber))
             {
-                if (sequenceNumber > paymentTransaction.SequenceNumber)
+                return false;
+            }
+
+            if (sequenceNumber > paymentTransaction.SequenceNumber)
+            {
+                wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(paymentTransaction, sequenceNumber);
+                if (!wasUpdated)
                 {
-                    var wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(paymentTransaction, sequenceNumber);
-                    if (!wasUpdated)
+                    _logger.LogError(
+                        $"Updating SequenceNumber to {sequenceNumber} for transaction {paymentTransaction.Id} failed");
+                }
+            }
+
+            if (!wasSkipped)
+            {
+                var successOperations = paymentTransaction.SequenceNumber;
+                if (sequenceNumber + 1 < successOperations)
+                {
+                    _logger.LogDebug($"Skip webhook for transactionId={paymentTransaction.Id} because it's old");
+
                     {
-                        _logger.LogError(
-                            $"Updating SequenceNumber to {sequenceNumber} for transaction {paymentTransaction.Id} failed");
+                        objectResult = BuildAcceptResult();
+                        return true;
                     }
                 }
+            }
+            else if (!wasUpdated)
+            {
+                _logger.LogDebug(
+                    $"Skip webhook for transactionId={paymentTransaction.Id} because of irrelevant webhook action and irrelevant sequence number");
 
-                if (!wasSkipped)
                 {
-                    var successOperations = paymentTransaction.SequenceNumber;
-                    if (sequenceNumber + 1 < successOperations)
-                    {
-                        _logger.LogDebug($"Skip webhook for transactionId={paymentTransaction.Id} because it's old");
-
-                        {
-                            objectResult = BuildAcceptResult();
-                            return true;
-                        }
-                    }
+                    objectResult = BuildAcceptResult();
+                    return true;
                 }
             }
 
@@ -315,7 +329,7 @@ namespace Business.Services
             }
             else
             {
-                var referencedTransaction = pspTransaction.GetByTransactionId(ts.Param);
+                var referencedTransaction = pspTransaction.GetByExternalTransactionId(ts.Param);
                 paymentTransaction = pspTransaction.GetLatest();
 
                 if (referencedTransaction == null || paymentTransaction == null)
@@ -507,7 +521,8 @@ namespace Business.Services
                         if (paymentTransaction != null)
                         {
                             var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
-                            var refundedAmount = refundTransaction.RequestedAmount + chargebacksFee -
+                            //Todo: update refunded amount
+                            var refundedAmount = paymentTransaction.RequestedAmount + chargebacksFee -
                                                  paymentTransaction.RefundedAmount - receivable;
                             if (int.TryParse(status.Sequencenumber, out var sequenceNumber))
                             {
@@ -520,6 +535,7 @@ namespace Business.Services
                                 }
 
                                 RegisterRefund(sequenceNumber, refundedAmount, refundTransaction);
+                                //Todo: sum refund update
                             }
                         }
                         else

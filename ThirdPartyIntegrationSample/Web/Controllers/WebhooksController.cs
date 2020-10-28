@@ -1,3 +1,4 @@
+using System.IO;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,8 +17,10 @@ namespace Web.Controllers
 
         [HttpPost]
         [Route("webhooks")]
-        public ObjectResult Post([FromBody] string requestString)
+        public ObjectResult Post()
         {
+            using var streamReader = new StreamReader(Request.Body);
+            var requestString = streamReader.ReadToEndAsync().Result;
             return _paymentService.HandleWebhookAsync(requestString);
         }
     }

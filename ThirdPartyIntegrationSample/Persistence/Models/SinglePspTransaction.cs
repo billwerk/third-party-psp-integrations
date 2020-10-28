@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace Persistence.Models
@@ -21,6 +20,12 @@ namespace Persistence.Models
             _all.Add(capture);
         }
 
+        public SinglePspTransaction(PaymentTransaction capture, RefundTransaction refund)
+        {
+            _all.Add(capture);
+            _all.Add(refund);
+        }
+
         public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture, RefundTransaction refund)
         {
             _all.Add(preauth);
@@ -33,9 +38,9 @@ namespace Persistence.Models
             return _all.OrderByDescending(t => t.Id).FirstOrDefault();
         }
 
-        public PaymentTransactionBase GetByTransactionId(string transactionId)
+        public PaymentTransactionBase GetByExternalTransactionId(string transactionId)
         {
-            return !ObjectId.TryParse(transactionId, out var trId) ? null : _all.SingleOrDefault(t => t.Id == trId);
+            return string.IsNullOrEmpty(transactionId) ? null : _all.SingleOrDefault(t => t.ExternalTransactionId == transactionId);
         }
 
         public static SinglePspTransaction GetFromIFindFluent(IFindFluent<PaymentTransactionBase, PaymentTransactionBase> findFluent)
@@ -51,15 +56,20 @@ namespace Persistence.Models
                 {
                     PreauthTransaction preauth = null;
                     PaymentTransaction capture = null;
+                    RefundTransaction refund = null;
                     foreach (var transaction in lst)
                     {
                         if (transaction.GetType() == typeof(PreauthTransaction))
                             preauth = transaction as PreauthTransaction;
                         else if (transaction.GetType() == typeof(PaymentTransaction))
                             capture = transaction as PaymentTransaction;
+                        else if (transaction.GetType() == typeof(RefundTransaction))
+                            refund = transaction as RefundTransaction;
                     }
                     if (preauth!=null && capture!=null)
                         return new SinglePspTransaction(preauth, capture);
+                    if (capture != null && refund != null)
+                        return new SinglePspTransaction(capture, refund);
                     break;
                 }
                 case 3:

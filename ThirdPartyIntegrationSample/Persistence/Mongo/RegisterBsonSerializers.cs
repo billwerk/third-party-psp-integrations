@@ -1,6 +1,8 @@
-﻿using Billwerk.Payment.SDK.DTO;
+using System;
+using Billwerk.Payment.SDK.DTO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
+using NodaTime;
 
 namespace Persistence.Mongo
 {
@@ -24,6 +26,21 @@ namespace Persistence.Mongo
             
             BsonClassMap.RegisterClassMap<PaymentBearerCreditCardDTO>();
             BsonClassMap.RegisterClassMap<PaymentBearerBankAccountDTO>();
+
+            BsonSerializer.RegisterSerializer(typeof(LocalDate), new BsonProxyDelegateSerializer<LocalDate, DateTime>(
+                x => new DateTime(x.ToDateTimeUnspecified().Ticks, DateTimeKind.Utc),
+                x =>
+                {
+                    if (x != x.Date)
+                        throw new Exception("Serialized LocalDate must be at midnight");
+                    return LocalDate.FromDateTime(x);
+                }
+            ));
+
+            BsonSerializer.RegisterSerializer(typeof(LocalTime), new BsonProxyDelegateSerializer<LocalTime, long>(
+                x => x.TickOfDay,
+                LocalTime.FromTicksSinceMidnight
+            ));
         }
 
         static RegisterBsonSerializers()
