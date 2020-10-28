@@ -6,7 +6,6 @@ using Billwerk.Payment.PayOne.Services;
 using Billwerk.Payment.SDK.Interfaces;
 using Business.Factory;
 using Business.Interfaces;
-using Business.PayOne.Services;
 using Business.Services;
 using Core.Interfaces;
 using Core.Rest;

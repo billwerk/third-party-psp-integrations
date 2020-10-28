@@ -22,16 +22,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Billwerk.Payment.PayOne.Services
 {
-    public class PayOnePaymentService : ExternalPspServiceBase, IPaymentService
+    public class PayOnePspService : ExternalPspServiceBase, IPaymentService
     {
         private const string PayOneDateFormat = "yyyyMMdd";
 
-        private readonly ILogger<PayOnePaymentService> _logger;
+        private readonly ILogger<PayOnePspService> _logger;
         private readonly IPayOneWrapper _payOneWrapper;
         private readonly IPayOneInitialTokenDecoder _initialTokenDecoder;
         
 
-        public PayOnePaymentService(ILogger<PayOnePaymentService> logger, IPayOneWrapper payOneWrapper, IPayOneInitialTokenDecoder initialTokenDecoder)
+        public PayOnePspService(ILogger<PayOnePspService> logger, IPayOneWrapper payOneWrapper, IPayOneInitialTokenDecoder initialTokenDecoder)
         {
             _logger = logger;
             _payOneWrapper = payOneWrapper;

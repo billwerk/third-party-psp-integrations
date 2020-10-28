@@ -5,7 +5,7 @@ using Billwerk.Payment.SDK.Interfaces;
 
 namespace Billwerk.Payment.PayOne.Services
 {
-    public class PayOneExternalIntegrationInfoService : IExternalIntegrationInfoService
+    public class PayOnePspIntegrationInfoService : IExternalIntegrationInfoService
     {
         public ExternalIntegrationInfoDTO Create()
         {

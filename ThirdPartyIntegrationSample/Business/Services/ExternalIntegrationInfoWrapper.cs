@@ -14,7 +14,7 @@ namespace Business.Factory
             switch (provider)
             {
                 case PaymentServiceProvider.PayOne:
-                    return new PayOneExternalIntegrationInfoService().Create();
+                    return new PayOnePspIntegrationInfoService().Create();
                 default:
                     throw new NotSupportedException($"Provide={provider} is not supported!");
             }

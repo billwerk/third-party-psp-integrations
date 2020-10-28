@@ -35,12 +35,12 @@ namespace Business.Services
         private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
         private const string RefundAction = "refund";
 
-        private readonly PayOnePaymentService _payOnePaymentService;
+        private readonly PayOnePspService _payOnePaymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
         private readonly IRecurringTokenService _recurringTokenService;
         private readonly ILogger<PaymentServiceWrapper> _logger;
 
-        public PaymentServiceWrapper(PayOnePaymentService payOnePaymentService, IPaymentTransactionService paymentTransactionService,
+        public PaymentServiceWrapper(PayOnePspService payOnePaymentService, IPaymentTransactionService paymentTransactionService,
             IRecurringTokenService recurringTokenService, ILogger<PaymentServiceWrapper> logger)
         {
             _payOnePaymentService = payOnePaymentService;

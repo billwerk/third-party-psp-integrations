@@ -8,7 +8,7 @@ using Billwerk.Payment.SDK.Interfaces;
 
 namespace Billwerk.Payment.PayOne.Services
 {
-    public class PayOneExternalSettingsValidator : IExternalSettingsValidator
+    public class PayOnePspSettingsValidator : IExternalSettingsValidator
     {
         private static ReadOnlyCollection<string> MerchantSettingsKeys =>
             new ReadOnlyCollection<string>(new[]
@@ -21,12 +21,7 @@ namespace Billwerk.Payment.PayOne.Services
                 PayOneConstants.PortalIdRecurringKey
             });
 
-        public List<ExternalIntegrationErrorDTO> ValidateIntegrationInfo(ExternalIntegrationValidateSettingsRequestDTO externalIntegrationSettings)
-        {
-            return null;
-        }
-
-        public List<ExternalIntegrationErrorDTO> ValidateMerchantSettings(ExternalIntegrationValidateSettingsRequestDTO externalIntegrationSettings)
+        public ExternalIntegrationValidateSettingsDTO Validate(ExternalIntegrationValidateSettingsRequestDTO externalIntegrationSettings)
         {
             List<ExternalIntegrationErrorDTO> errors = null;
 
@@ -44,8 +39,17 @@ namespace Billwerk.Payment.PayOne.Services
             {
                 AddError(ref errors, $"The '{merchantSetting.KeyName}' setting is empty.");
             }
-
-            return errors;
+            
+            var hasErrors = errors != null && errors.Count > 0;
+            
+            return new ExternalIntegrationValidateSettingsDTO
+            {
+                IsCreditCardValid = !hasErrors,
+                IsDebitValid = !hasErrors,
+                IsOnAccountValid = !hasErrors,
+                Errors = errors
+            };
+            
         }
         
         private static void AddError(ref List<ExternalIntegrationErrorDTO> errors, string errorMessage)
