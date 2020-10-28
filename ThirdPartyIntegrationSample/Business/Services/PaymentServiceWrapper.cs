@@ -95,6 +95,11 @@ namespace Business.Services
 
             var refundResult = await _paymentService.SendRefund(dto, targetTransaction);
 
+            if (refundResult.Status == PaymentTransactionNewStatus.Succeeded)
+            {
+                _paymentTransactionService.UpdateTransactionSeqNumber(targetTransaction, targetTransaction.SequenceNumber + 1);
+            }
+
             var refundTransaction = refundResult.ToEntity();
 
             refundTransaction.PaymentTransactionId = targetTransaction.Id.AsTyped<PaymentTransaction>();
@@ -521,7 +526,6 @@ namespace Business.Services
                         if (paymentTransaction != null)
                         {
                             var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
-                            //Todo: update refunded amount
                             var refundedAmount = paymentTransaction.RequestedAmount + chargebacksFee -
                                                  paymentTransaction.RefundedAmount - receivable;
                             if (int.TryParse(status.Sequencenumber, out var sequenceNumber))
@@ -535,7 +539,12 @@ namespace Business.Services
                                 }
 
                                 RegisterRefund(sequenceNumber, refundedAmount, refundTransaction);
-                                //Todo: sum refund update
+
+                                if (refundTransaction.Refunds != null)
+                                {
+                                    paymentTransaction.RefundedAmount = refundTransaction.Refunds.Sum(r => r.Amount);
+                                    _paymentTransactionService.Update(paymentTransaction);
+                                }
                             }
                         }
                         else
@@ -651,8 +660,10 @@ namespace Business.Services
 
                 if (paymentTransaction.Status == PaymentTransactionNewStatus.Failed) return;
 
-                paymentTransaction.Chargebacks.Add(externalPaymentChargebackItemDTO);
+                
             }
+
+            paymentTransaction.Chargebacks.Add(externalPaymentChargebackItemDTO);
         }
 
         #endregion private methods

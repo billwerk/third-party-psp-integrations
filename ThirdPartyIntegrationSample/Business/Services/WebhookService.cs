@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http;
 using Business.Interfaces;
 using Business.Models;
@@ -25,7 +25,7 @@ namespace Business.Services
             var restResult =
                 await _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent);
 
-            if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.Accepted)
+            if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.OK)
             {
                 //Todo: Exception to retry
                 throw new WebException();
