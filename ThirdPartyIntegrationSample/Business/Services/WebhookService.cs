@@ -19,11 +19,11 @@ namespace Business.Services
         }
 
         [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 120, 240 })]
-        public async void Send(string dispatchUrl, string transactionId)
+        public void Send(string dispatchUrl, string transactionId)
         {
             var webhook = new ExternalPaymentWebhookDTO(transactionId);
             var restResult =
-                await _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent);
+                _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent).Result;
 
             if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.OK)
             {
