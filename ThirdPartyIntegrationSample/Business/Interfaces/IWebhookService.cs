@@ -1,7 +1,11 @@
-﻿namespace Business.Interfaces
+﻿using System.Threading.Tasks;
+using Hangfire;
+
+namespace Business.Interfaces
 {
     public interface IWebhookService
     {
-        public void Send(string dispatchUrl, string transactionId);
+        [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 120, 240 })]
+        public Task Send(string dispatchUrl, string transactionId);
     }
 }

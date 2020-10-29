@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Business.Interfaces;
 using Business.Models;
 using Core.Interfaces;
@@ -19,11 +20,11 @@ namespace Business.Services
         }
 
         [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 120, 240 })]
-        public void Send(string dispatchUrl, string transactionId)
+        public async Task Send(string dispatchUrl, string transactionId)
         {
             var webhook = new ExternalPaymentWebhookDTO(transactionId);
             var restResult =
-                _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent).Result;
+                await _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent);
 
             if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.OK)
             {
