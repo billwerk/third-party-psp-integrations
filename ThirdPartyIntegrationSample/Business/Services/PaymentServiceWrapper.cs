@@ -31,6 +31,7 @@ namespace Business.Services
     {
         private const string NotFoundErrorMessage = "Not Found";
         private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
+        private const string RefundAction = "refund";
 
         private readonly IPaymentService _paymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
@@ -106,6 +107,7 @@ namespace Business.Services
             refundTransaction.MerchantSettings = dto.MerchantSettings;
             refundTransaction.Role = targetTransaction.Role;
             refundTransaction.WebhookTarget = dto.WebhookTarget;
+            refundTransaction.SequenceNumber = targetTransaction.SequenceNumber;
 
             refundResult.ExternalTransactionId = refundTransaction.Id.ToString();
 
@@ -335,7 +337,11 @@ namespace Business.Services
             else
             {
                 var referencedTransaction = pspTransaction.GetByExternalTransactionId(ts.Param);
-                paymentTransaction = pspTransaction.GetLatest();
+                paymentTransaction = ts.TxAction == RefundAction
+                    ? pspTransaction.GetRefundTransaction(int.Parse(ts.Sequencenumber))
+                    : pspTransaction.GetLatest();
+
+                //Todo: if Action is refund and transaction == null => External Refund
 
                 if (referencedTransaction == null || paymentTransaction == null)
                 {
@@ -542,7 +548,7 @@ namespace Business.Services
 
                                 if (refundTransaction.Refunds != null)
                                 {
-                                    paymentTransaction.RefundedAmount = refundTransaction.Refunds.Sum(r => r.Amount);
+                                    paymentTransaction.RefundedAmount += refundTransaction.Refunds.Sum(r => r.Amount);
                                     _paymentTransactionService.Update(paymentTransaction);
                                 }
                             }

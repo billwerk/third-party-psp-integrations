@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using MongoDB.Driver;
@@ -8,34 +7,36 @@ namespace Persistence.Models
     public class SinglePspTransaction
     {
         private readonly List<PaymentTransactionBase> _all = new List<PaymentTransactionBase>();
+        private readonly List<RefundTransaction> _refunds;
 
         public SinglePspTransaction(PaymentTransactionBase paymentTransaction)
         {
             _all.Add(paymentTransaction);
         }
-        
-        public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture)
-        {
-            _all.Add(preauth);
-            _all.Add(capture);
-        }
 
-        public SinglePspTransaction(PaymentTransaction capture, RefundTransaction refund)
+        public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture, List<RefundTransaction> refunds)
         {
-            _all.Add(capture);
-            _all.Add(refund);
-        }
+            if (preauth != null)
+            {
+                _all.Add(preauth);
+            }
 
-        public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture, RefundTransaction refund)
-        {
-            _all.Add(preauth);
-            _all.Add(capture);
-            _all.Add(refund);
+            if (capture != null)
+            {
+                _all.Add(capture);
+            }
+
+            _refunds = refunds;
         }
 
         public PaymentTransactionBase GetLatest()
         {
             return _all.OrderByDescending(t => t.Id).FirstOrDefault();
+        }
+
+        public RefundTransaction GetRefundTransaction(int sequenceNumber)
+        {
+            return _refunds.SingleOrDefault(r => r.SequenceNumber == sequenceNumber);
         }
 
         public PaymentTransactionBase GetByExternalTransactionId(string transactionId)
@@ -52,11 +53,11 @@ namespace Persistence.Models
                     return null;
                 case 1:
                     return new SinglePspTransaction(lst[0]);
-                case 2:
+                default:
                 {
                     PreauthTransaction preauth = null;
                     PaymentTransaction capture = null;
-                    RefundTransaction refund = null;
+                    var refunds = new List<RefundTransaction>();
                     foreach (var transaction in lst)
                     {
                         if (transaction.GetType() == typeof(PreauthTransaction))
@@ -64,35 +65,11 @@ namespace Persistence.Models
                         else if (transaction.GetType() == typeof(PaymentTransaction))
                             capture = transaction as PaymentTransaction;
                         else if (transaction.GetType() == typeof(RefundTransaction))
-                            refund = transaction as RefundTransaction;
+                            refunds.Add(transaction as RefundTransaction);
                     }
-                    if (preauth!=null && capture!=null)
-                        return new SinglePspTransaction(preauth, capture);
-                    if (capture != null && refund != null)
-                        return new SinglePspTransaction(capture, refund);
-                    break;
-                }
-                case 3:
-                {
-                    PreauthTransaction preauth = null;
-                    PaymentTransaction capture = null;
-                    RefundTransaction refund = null;
-                    foreach (var transaction in lst)
-                    {
-                        if (transaction.GetType() == typeof(PreauthTransaction))
-                            preauth = transaction as PreauthTransaction;
-                        else if (transaction.GetType() == typeof(PaymentTransaction))
-                            capture = transaction as PaymentTransaction;
-                        else if (transaction.GetType() == typeof(RefundTransaction))
-                            refund = transaction as RefundTransaction;
-                    }
-                    if (preauth!=null && capture!=null && refund!=null)
-                        return new SinglePspTransaction(preauth, capture, refund);
-                    break;
+                    return new SinglePspTransaction(preauth, capture, refunds);
                 }
             }
-
-            throw new InvalidOperationException($"It is not possible to create SinglePspTransaction from a cursor. Transactions in a cursor={lst.Count}.");
         }
     }
 }
