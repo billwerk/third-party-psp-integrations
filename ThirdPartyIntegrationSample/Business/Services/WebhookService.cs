@@ -1,32 +1,35 @@
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Webhook;
+using Billwerk.Payment.SDK.Enums;
 using Billwerk.Payment.SDK.Interfaces;
-using Billwerk.Payment.SDK.Rest;
+using Billwerk.Payment.SDK.Models;
+using Business.Enums;
 using Business.Interfaces;
-using Business.Models;
-using Core.Interfaces;
-using Core.Rest;
 using Hangfire;
-using Newtonsoft.Json;
 
 namespace Business.Services
 {
     public class WebhookService : IWebhookService
     {
-        private readonly IRestClient _restClient;
+        private readonly IPspClient _restClient;
 
-        public WebhookService(IRestClient restClient)
+        public WebhookService(IPspClient restClient)
         {
             _restClient = restClient;
         }
 
         [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 120, 240 })]
-        public async Task Send(string dispatchUrl, string transactionId)
+        public async Task Send(string dispatchUrl, PaymentServiceProvider provider, string transactionId)
         {
             var webhook = new ExternalPaymentWebhookDTO(transactionId);
-            var restResult =
-                await _restClient.ExecuteAsync(dispatchUrl, HttpMethod.Post, JsonConvert.SerializeObject(webhook), HttpContentType.JsonStringContent);
+            var l = new PspLoggingContext
+            {
+                PspType = provider.ToString(),
+                TransactionId = transactionId
+            };
+            var restResult = await _restClient.ExecuteRequestAsync(dispatchUrl, HttpMethod.Post, webhook, l, HttpContentType.JsonStringContent);
 
             if (!restResult.IsSuccessStatusCode || restResult.StatusCode != HttpStatusCode.Accepted)
             {

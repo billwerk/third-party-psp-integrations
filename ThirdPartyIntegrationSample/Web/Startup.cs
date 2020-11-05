@@ -67,7 +67,7 @@ namespace Web {
             
             
             //PayOne
-            services.AddScoped<IPayOneWrapper, PayOneWrapper>();
+            services.AddScoped<IPayOnePspWrapper, PayOnePspWrapper>();
             services.AddScoped<IPayOneInitialTokenDecoder, PayOneInitialTokenDecoder>();
             //PayOne
             
@@ -80,7 +80,7 @@ namespace Web {
             
             services.AddScoped<IPaymentTransactionService, PaymentTransactionService>();
             
-            services.AddScoped<IRestClient, RestClient>();
+            services.AddScoped<IPspClient, RestClient>();
             services.AddScoped<HttpClient, HttpClient>();
             services.AddSingleton<IHttpContentFactory, FormUrlEncodedContentFactory>();
             services.AddSingleton<IHttpContentFactory, JsonStringContentFactory>();

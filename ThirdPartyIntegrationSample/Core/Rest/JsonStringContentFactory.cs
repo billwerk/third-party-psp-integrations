@@ -1,6 +1,6 @@
 ﻿using System.Net.Http;
 using System.Text;
-using Billwerk.Payment.SDK.Rest;
+using Billwerk.Payment.SDK.Enums;
 using Core.Interfaces;
 
 namespace Core.Rest

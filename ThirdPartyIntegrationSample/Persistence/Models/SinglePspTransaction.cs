@@ -9,9 +9,9 @@ namespace Persistence.Models
         private readonly List<PaymentTransactionBase> _all = new List<PaymentTransactionBase>();
         private readonly List<RefundTransaction> _refunds;
 
-        public SinglePspTransaction(PaymentTransactionBase paymentTransaction)
+        public SinglePspTransaction(Transaction transaction)
         {
-            _all.Add(paymentTransaction);
+            _all.Add(transaction);
         }
 
         public SinglePspTransaction(PreauthTransaction preauth, PaymentTransaction capture, List<RefundTransaction> refunds)
@@ -29,7 +29,7 @@ namespace Persistence.Models
             _refunds = refunds;
         }
 
-        public PaymentTransactionBase GetLatest()
+        public Transaction GetLatest()
         {
             return _all.OrderByDescending(t => t.Id).FirstOrDefault();
         }
@@ -44,7 +44,7 @@ namespace Persistence.Models
             return string.IsNullOrEmpty(transactionId) ? null : _all.SingleOrDefault(t => t.ExternalTransactionId == transactionId);
         }
 
-        public static SinglePspTransaction GetFromIFindFluent(IFindFluent<PaymentTransactionBase, PaymentTransactionBase> findFluent)
+        public static SinglePspTransaction GetFromIFindFluent(IFindFluent<Transaction, Transaction> findFluent)
         {
             var lst = findFluent.ToList();
             switch (lst.Count)

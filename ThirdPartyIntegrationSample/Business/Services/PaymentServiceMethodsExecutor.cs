@@ -9,7 +9,7 @@ namespace Business.Services
     public class PaymentServiceMethodsExecutor : IPaymentServiceMethodsExecutor
     {
         private const int DelayInSeconds = 30;
-        public void ExecuteAsynchronously(Expression<Action<IPaymentService>> methodCall)
+        public void ExecuteAsynchronously(Expression<Action<IPspPaymentService>> methodCall)
         {
             var jobId = BackgroundJob.Schedule(methodCall, TimeSpan.FromSeconds(DelayInSeconds));
             

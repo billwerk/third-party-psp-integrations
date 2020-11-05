@@ -7,7 +7,7 @@ namespace Persistence.Models
     public class RecurringTokenPayOne: RecurringToken, IPayOneRecurringToken
     {
         public string UserId { get; set; }
-        public PaymentBearerDTO PaymentBearer { get; set; }
+        public PaymentBearerDTO PaymentBearerDTO { get; set; }
         public PayOnePspBearer PspBearer { get; set; }
     }
 }

@@ -3,14 +3,14 @@ using Persistence.Mongo;
 
 namespace Persistence.Interfaces
 {
-    public interface IPaymentTransactionService : IServiceBase<PaymentTransactionBase>
+    public interface IPaymentTransactionService : IServiceBase<Transaction>
     {
-        PaymentTransactionBase SingleByExternalTransactionIdOrDefault(string externalTransactionId);
+        Transaction SingleByExternalTransactionIdOrDefault(string externalTransactionId);
         
         SinglePspTransaction SinglePspTransactionByProviderTransactionId(string providerTransactionId);
         
         PaymentTransaction SingleByPreauthTransactionId(ObjectId<PreauthTransaction> preauthTransactionId);
 
-        bool UpdateTransactionSeqNumber(PaymentTransactionBase paymentTransaction, int sequenceNumber);
+        bool UpdateTransactionSeqNumber(Transaction transaction, int sequenceNumber);
     }
 }

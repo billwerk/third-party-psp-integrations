@@ -52,7 +52,7 @@ namespace Business.Helpers
                 Currency = entity.Currency,
                 RequestedAmount = entity.RequestedAmount,
                 TransactionId = entity.ExternalTransactionId,
-                MerchantSettings = entity.MerchantSettings,
+                MerchantPspSettings = entity.MerchantSettings,
                 PaymentMeansReference = new ExternalPaymentMeansReferenceDTO
                 {
                     Role = entity.Role
@@ -99,7 +99,7 @@ namespace Business.Helpers
 
         private static TEntity ToEntity<TEntity, TDto>(this TDto dto) 
             where TDto : ExternalPaymentTransactionBaseDTO
-            where TEntity : PaymentTransactionBase, new()
+            where TEntity : Transaction, new()
         {
             var paymentTransaction = new TEntity
             {
@@ -116,7 +116,7 @@ namespace Business.Helpers
             return paymentTransaction;
         }
 
-        private static TDto ToDto<TDto, TEntity>(this TEntity entity) where TEntity : PaymentTransactionBase
+        private static TDto ToDto<TDto, TEntity>(this TEntity entity) where TEntity : Transaction
             where TDto : ExternalPaymentTransactionBaseDTO, new()
         {
             var transaction = new TDto
@@ -139,7 +139,7 @@ namespace Business.Helpers
             {
                 var result = new RecurringTokenPayOne
                 {
-                    PaymentBearer = t.PaymentBearer,
+                    PaymentBearerDTO = t.PaymentBearerDTO,
                     PspBearer = t.PspBearer,
                     UserId = t.UserId
                 };

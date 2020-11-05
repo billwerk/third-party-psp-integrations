@@ -6,15 +6,18 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Billwerk.Payment.PayOne.Model;
+using Billwerk.Payment.PayOne.Models;
 using Billwerk.Payment.PayOne.Services;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.IntegrationInfo;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Payment;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Preauth;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Refund;
 using Billwerk.Payment.SDK.Enums;
 using Billwerk.Payment.SDK.Enums.ExternalIntegration;
 using Billwerk.Payment.SDK.Interfaces;
+using Billwerk.Payment.SDK.Interfaces.Models;
 using Business.Enums;
 using Business.Helpers;
 using Business.Interfaces;
@@ -49,7 +52,7 @@ namespace Business.Services
             _logger = logger;
         }
 
-        private IPaymentService GetPaymentService(PaymentServiceProvider provider)
+        private IPspPaymentService GetPaymentService(PaymentServiceProvider provider)
         {
             switch (provider)
             {
@@ -62,19 +65,9 @@ namespace Business.Services
         
         public async Task<ExternalPaymentTransactionDTO> SendPayment(PaymentServiceProvider provider, ExternalPaymentRequestDTO paymentDto)
         {
-            var externalPaymentRequest = new ExternalPaymentRequestWrapperDTO
-            {
-                PaymentRequestDto = paymentDto
-            };
-
-            var resultOfPopulation = TryToPopulatePreauthRequestDto(externalPaymentRequest, out var sequenceNumber);
-            if (resultOfPopulation != null)
-            {
-                //means error
-                return resultOfPopulation;
-            }
-
-            if (!GetRecurringTokenByRequest(paymentDto, out var recurringToken, out var error))
+            int sequenceNumber;
+            ExternalIntegrationErrorDTO error;
+            if (GetPreauthInfoByRequest(paymentDto, provider, out var preauthInfo, out sequenceNumber, out error))
             {
                 return new ExternalPaymentTransactionDTO
                 {
@@ -82,11 +75,19 @@ namespace Business.Services
                 };
             }
 
-            var paymentResult = await GetPaymentService(provider).SendPayment(externalPaymentRequest, recurringToken);
+            if (!GetRecurringTokenByRequest(paymentDto, out var recurringToken, out error))
+            {
+                return new ExternalPaymentTransactionDTO
+                {
+                    Error = error
+                };
+            }
+
+            var paymentResult = await GetPaymentService(provider).SendPayment(paymentDto, recurringToken, preauthInfo);
 
             var mappedPaymentTransaction = paymentResult.PaymentDto.ToEntity();
             mappedPaymentTransaction.SequenceNumber = sequenceNumber;
-            mappedPaymentTransaction.MerchantSettings = paymentDto.MerchantSettings;
+            mappedPaymentTransaction.MerchantSettings = (ExternalIntegrationMerchantPspSettings)paymentDto.MerchantPspSettings;
             mappedPaymentTransaction.Role = paymentDto.PaymentMeansReference.Role;
             mappedPaymentTransaction.WebhookTarget = paymentDto.WebhookTarget;
             mappedPaymentTransaction.InvoiceReferenceCode = paymentDto.InvoiceReferenceCode;
@@ -123,7 +124,7 @@ namespace Business.Services
             var refundTransaction = refundResult.ToEntity();
 
             refundTransaction.PaymentTransactionId = targetTransaction.Id.AsTyped<PaymentTransaction>();
-            refundTransaction.MerchantSettings = dto.MerchantSettings;
+            refundTransaction.MerchantSettings = (ExternalIntegrationMerchantPspSettings)dto.MerchantPspSettings;
             refundTransaction.Role = targetTransaction.Role;
             refundTransaction.WebhookTarget = dto.WebhookTarget;
             refundTransaction.SequenceNumber = targetTransaction.SequenceNumber;
@@ -157,7 +158,7 @@ namespace Business.Services
             var preauthTransaction = preauthDto.ToEntity();
 
             preauthTransaction.SequenceNumber = 0;
-            preauthTransaction.MerchantSettings = dto.MerchantSettings;
+            preauthTransaction.MerchantSettings = (ExternalIntegrationMerchantPspSettings)dto.MerchantPspSettings;
             preauthTransaction.Role = dto.PaymentMeansReference.Role;
             preauthTransaction.WebhookTarget = dto.WebhookTarget;
 
@@ -270,7 +271,7 @@ namespace Business.Services
                 _paymentTransactionService.Update(paymentTransaction);
 
                 BackgroundJob.Enqueue<IWebhookService>(service =>
-                    service.Send(paymentTransaction.WebhookTarget, paymentTransaction.ExternalTransactionId));
+                    service.Send(paymentTransaction.WebhookTarget,PaymentServiceProvider.PayOne, paymentTransaction.ExternalTransactionId));
 
                 return BuildAcceptResult();
             }
@@ -282,7 +283,7 @@ namespace Business.Services
             }
         }
 
-        private bool AnalyzeSequenceNumber(TransactionStatus ts, PaymentTransactionBase paymentTransaction, bool wasSkipped,
+        private bool AnalyzeSequenceNumber(TransactionStatus ts, Transaction transaction, bool wasSkipped,
             out ObjectResult objectResult)
         {
             var wasUpdated = false;
@@ -330,7 +331,7 @@ namespace Business.Services
             return false;
         }
 
-        private bool TryToIdentifyTransaction(TransactionStatus ts, out PaymentTransactionBase paymentTransaction,
+        private bool TryToIdentifyTransaction(TransactionStatus ts, out Transaction transaction,
             out ObjectResult buildAcceptResult)
         {
             buildAcceptResult = null;
@@ -338,9 +339,9 @@ namespace Business.Services
             var pspTransaction = _paymentTransactionService.SinglePspTransactionByProviderTransactionId(ts.TxId);
             if (pspTransaction == null)
             {
-                paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
+                transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
 
-                if (paymentTransaction == null)
+                if (transaction == null)
                 {
                     _logger.LogWarning(
                         $"PayOne: provider transaction not found (id={ts.TxId},our reference={ts.Param}). Probably it is a transaction of a different system");
@@ -351,12 +352,12 @@ namespace Business.Services
                     }
                 }
 
-                if (paymentTransaction.GetType() == typeof(PreauthTransaction))
+                if (transaction.GetType() == typeof(PreauthTransaction))
                 {
                     var captureTransaction =
-                        _paymentTransactionService.SingleByPreauthTransactionId((paymentTransaction as PreauthTransaction)
+                        _paymentTransactionService.SingleByPreauthTransactionId((transaction as PreauthTransaction)
                             .GetId());
-                    if (captureTransaction != null) paymentTransaction = captureTransaction;
+                    if (captureTransaction != null) transaction = captureTransaction;
                 }
             }
             else
@@ -368,7 +369,7 @@ namespace Business.Services
 
                 //Todo: if Action is refund and transaction == null => External Refund
 
-                if (referencedTransaction == null || paymentTransaction == null)
+                if (referencedTransaction == null || transaction == null)
                 {
                     _logger.LogWarning($"PayOne: Webhook for transaction {ts.Param} is invalid. Rejecting request");
 
@@ -437,36 +438,48 @@ namespace Business.Services
             return true;
         }
 
-        //TODO Refactor this: it's not easy to understand logic
-        private ExternalPaymentTransactionDTO TryToPopulatePreauthRequestDto(ExternalPaymentRequestWrapperDTO externalPaymentRequest,
-            out int sequenceNumber)
+        private bool GetPreauthInfoByRequest(ExternalPaymentRequestDTO externalPaymentRequest, PaymentServiceProvider provider,
+            out IPaymentPreauthInfo preauthInfo, out int sequenceNumber, out ExternalIntegrationErrorDTO error)
         {
             sequenceNumber = 0;
+            error = null;
+            preauthInfo = null;
 
-            var externalPreauthTransactionId =
-                externalPaymentRequest?.PaymentRequestDto?.PaymentMeansReference?.PreauthTransactionId;
-            if (string.IsNullOrWhiteSpace(externalPreauthTransactionId)) return null;
+            var externalPreauthTransactionId = externalPaymentRequest.PaymentMeansReference?.PreauthTransactionId;
+            if (string.IsNullOrWhiteSpace(externalPreauthTransactionId))
+            {
+                return true;
+            }
 
-            var paymentTransaction =
-                _paymentTransactionService.SingleByExternalTransactionIdOrDefault(externalPreauthTransactionId);
+            var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(externalPreauthTransactionId);
 
             if (paymentTransaction == null || !(paymentTransaction is PreauthTransaction preauthTransaction))
-                return new ExternalPaymentTransactionDTO
+            {
+                error = new ExternalIntegrationErrorDTO
                 {
-                    Error = new ExternalIntegrationErrorDTO
-                    {
-                        ErrorCode = PaymentErrorCode.InvalidPreconditions,
-                        ErrorMessage = $"Unknown preauthTransactionId {externalPreauthTransactionId}"
-                    }
+                    ErrorCode = PaymentErrorCode.InvalidPreconditions,
+                    ErrorMessage = $"Unknown preauthTransactionId {externalPreauthTransactionId}"
                 };
+                return false;
+            }
 
-            externalPaymentRequest.PreauthRequestDto = preauthTransaction.ToRequestDto();
-            externalPaymentRequest.BearerDto = preauthTransaction.Bearer;
-            externalPaymentRequest.PspTransactionId = preauthTransaction.PspTransactionId;
+            if (provider == PaymentServiceProvider.PayOne)
+            {
+                preauthInfo=new PayOnePreauthInfo
+                {
+                    Role = preauthTransaction.Role,
+                    BearerDto = preauthTransaction.Bearer,
+                    PspTransactionId = preauthTransaction.PspTransactionId
+                };
+            }
+            else
+            {
+                throw new NotSupportedException($"provider={provider} is not supported!");
+            }
 
             sequenceNumber = 1;
 
-            return null;
+            return true;
         }
 
         private string TransformAndUpdateRecurringToken(IRecurringToken token)
@@ -489,6 +502,7 @@ namespace Business.Services
             return recurringToken.Id.ToString();
         }
 
+        //TODO TransactionStatus is payone specific, move to payone library
         private static decimal GetChargebackFeeAmount(TransactionStatus status, PaymentTransaction transaction)
         {
             var receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
@@ -502,7 +516,7 @@ namespace Business.Services
             return 0;
         }
 
-        private void MapPaymentTransactionStatus(TransactionStatus status, PaymentTransactionBase transaction,
+        private void MapPaymentTransactionStatus(TransactionStatus status, Transaction transaction,
             out bool wasSkipped)
         {
             decimal receivable = 0;
@@ -626,11 +640,11 @@ namespace Business.Services
             refundTransaction.Refunds.Add(externalRefundItemDTO);
         }
 
-        private static void RegisterPayment(TransactionStatus status, PaymentTransaction paymentTransaction, decimal amount)
+        private static void RegisterPayment(TransactionStatus status, PaymentTransaction transaction, decimal amount)
         {
-            paymentTransaction.Payments ??= new List<ExternalPaymentItemDTO>();
+            transaction.Payments ??= new List<ExternalPaymentItemDTO>();
             var now = DateTime.Now;
-            paymentTransaction.Payments.Add(new ExternalPaymentItemDTO
+            transaction.Payments.Add(new ExternalPaymentItemDTO
             {
                 ExternalItemId = status.Sequencenumber,
                 Amount = amount,
@@ -638,16 +652,16 @@ namespace Business.Services
             });
         }
 
-        private static void RegisterChargeback(TransactionStatus status, PaymentTransaction paymentTransaction, decimal amount)
+        private static void RegisterChargeback(TransactionStatus status, PaymentTransaction transaction, decimal amount)
         {
-            paymentTransaction.Chargebacks ??= new List<ExternalPaymentChargebackItemDTO>();
+            transaction.Chargebacks ??= new List<ExternalPaymentChargebackItemDTO>();
             var now = DateTime.Now;
             var externalPaymentChargebackItemDTO = new ExternalPaymentChargebackItemDTO
             {
                 Amount = amount,
                 BookingDate = new LocalDate(now.Year, now.Month, now.Day),
                 PspReasonCode = status.FailedCause,
-                FeeAmount = GetChargebackFeeAmount(status, paymentTransaction)
+                FeeAmount = GetChargebackFeeAmount(status, transaction)
             };
 
             if (string.IsNullOrWhiteSpace(status.FailedCause) == false)
@@ -692,11 +706,11 @@ namespace Business.Services
                         break;
                     default:
                         externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.Unknown;
-                        paymentTransaction.StatusHistory.Add(PaymentTransactionNewStatus.Failed);
+                        transaction.StatusHistory.Add(PaymentTransactionNewStatus.Failed);
                         break;
                 }
 
-                if (paymentTransaction.Status == PaymentTransactionNewStatus.Failed) return;
+                if (transaction.Status == PaymentTransactionNewStatus.Failed) return;
 
                 
             }

@@ -3,8 +3,6 @@ using System.Linq.Expressions;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Billwerk.Payment.SDK.Interfaces;
-using Billwerk.Payment.SDK.Rest;
-using Business.Enums;
 using Business.Interfaces;
 using Core.Rest;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +18,7 @@ namespace Web.Controllers
             _paymentServiceMethodsExecutor = paymentServiceMethodsExecutor;
         }
 
-        protected ObjectResult ExecutePaymentServiceMethodAsynchronously(Expression<Action<IPaymentService>> methodCall)
+        protected ObjectResult ExecutePaymentServiceMethodAsynchronously(Expression<Action<IPspPaymentService>> methodCall)
         {
             _paymentServiceMethodsExecutor.ExecuteAsynchronously(methodCall);
 

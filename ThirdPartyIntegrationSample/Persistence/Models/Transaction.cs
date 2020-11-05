@@ -11,9 +11,9 @@ namespace Persistence.Models
     [BsonKnownTypes(typeof(PreauthTransaction))]
     [BsonKnownTypes(typeof(PaymentTransaction))]
     [BsonKnownTypes(typeof(RefundTransaction))]
-    public abstract class PaymentTransactionBase : DbObject
+    public abstract class Transaction : DbObject
     {
-        protected PaymentTransactionBase()
+        protected Transaction()
         {
             StatusHistory = new List<PaymentTransactionNewStatus>();
         }
@@ -23,7 +23,7 @@ namespace Persistence.Models
         public string Currency { get; set; }
         public decimal RequestedAmount { get; set; }
         public DateTime LastUpdated { get; set; }
-        public List<MerchantSettingValue> MerchantSettings { get; set; }
+        public ExternalIntegrationMerchantPspSettings MerchantSettings { get; set; }
         
         public PaymentProviderRole Role { get; set; }
         public List<PaymentTransactionNewStatus> StatusHistory { get; set; }

@@ -6,7 +6,7 @@ namespace Business.Interfaces
 {
     public interface IPaymentServiceMethodsExecutor
     {
-        public void ExecuteAsynchronously(Expression<Action<IPaymentService>> methodCall);
+        public void ExecuteAsynchronously(Expression<Action<IPspPaymentService>> methodCall);
         public void ExecuteSynchronously();
     }
 }

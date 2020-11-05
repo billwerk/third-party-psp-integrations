@@ -3,14 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Billwerk.Payment.SDK.Enums;
 using Billwerk.Payment.SDK.Interfaces;
-using Billwerk.Payment.SDK.Rest;
+using Billwerk.Payment.SDK.Interfaces.Models;
+using Billwerk.Payment.SDK.Models;
 using Core.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Core.Rest
 {
-    public class RestClient : IRestClient
+    public class RestClient : IPspClient
     {
         private readonly HttpClient _httpClient;
         private readonly IEnumerable<IHttpContentFactory> _httpContentFactories;
@@ -25,7 +27,7 @@ namespace Core.Rest
             _logger = logger;
         }
 
-        public async Task<RestResult<string>> ExecuteAsync(string absoluteUriPath, 
+        public async Task<PspResult> ExecuteAsync(string absoluteUriPath, 
             HttpMethod httpMethod, 
             object entity = null, 
             HttpContentType? httpContentType = null)
@@ -47,25 +49,16 @@ namespace Core.Rest
                 responseData = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
 
-            RestResult<string> result;
+            var result = new PspResult
+            {
+                StatusCode = response.StatusCode,
+                Data = responseData
+            };
             if (!response.IsSuccessStatusCode)
             {
-                result = new RestResult<string>(responseData)
-                {
-                    StatusCode = response.StatusCode
-                };
-                
                 _logger.LogWarning(responseData);
             }
-            else
-            {
-                result = new RestResult<string>
-                {
-                    StatusCode = response.StatusCode,
-                    Data = responseData
-                };
-            }
-
+            
             return result;
         }
 
@@ -81,6 +74,12 @@ namespace Core.Rest
             }
 
             request.Content = httpContentFactory.Create(entity);
+        }
+
+        public async Task<IPspResponse> ExecuteRequestAsync(string absoluteUriPath, HttpMethod httpMethod, IPspRequest request, PspLoggingContext loggingContext,
+            HttpContentType? httpContentType = null, int? timeoutInMilliseconds = null)
+        {
+            return await ExecuteAsync(absoluteUriPath, httpMethod, request, httpContentType);
         }
     }
 }

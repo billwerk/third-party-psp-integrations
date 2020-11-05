@@ -1,8 +1,8 @@
-﻿using Billwerk.Payment.SDK.Rest;
-using Core.Rest;
+﻿using Core.Rest;
 
 namespace Business
 {
+    
     public class CheckoutResult : ResultBase<string>
     {
         public CheckoutResult(string data)
@@ -10,9 +10,9 @@ namespace Business
             Data = data;
         }
 
-        public CheckoutResult(string code, string message) 
-            : base(code, message)
+        public CheckoutResult(string code, string message): base(code, message)
         {
         }
     }
+    
 }

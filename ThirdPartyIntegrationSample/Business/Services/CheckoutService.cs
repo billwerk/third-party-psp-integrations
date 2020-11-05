@@ -3,6 +3,7 @@ using Business.Interfaces;
 
 namespace Business.Services
 {
+    
     public class CheckoutService : ICheckoutService
     {
         private readonly ITetheredPaymentInformationEncoder _paymentInformationEncoder;
@@ -17,4 +18,5 @@ namespace Business.Services
             return new CheckoutResult(_paymentInformationEncoder.Encrypt(json));
         }
     }
+    
 }

@@ -4,7 +4,7 @@ using Persistence.Mongo;
 
 namespace Persistence.Models
 {
-    public class RefundTransaction : PaymentTransactionBase
+    public class RefundTransaction : Transaction
     {
         public List<ExternalRefundItemDTO> Refunds { get; set; }
         

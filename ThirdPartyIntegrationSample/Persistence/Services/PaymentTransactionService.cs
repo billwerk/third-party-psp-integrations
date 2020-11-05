@@ -9,23 +9,23 @@ using Persistence.Mongo;
 
 namespace Persistence.Services
 {
-    public class PaymentTransactionService : ServiceBase<PaymentTransactionBase>, IPaymentTransactionService
+    public class PaymentTransactionService : ServiceBase<Transaction>, IPaymentTransactionService
     {
         public PaymentTransactionService(IMongoContext db) : base(db)
         {
         }
 
-        public PaymentTransactionBase SingleByExternalTransactionIdOrDefault(string externalTransactionId)
+        public Transaction SingleByExternalTransactionIdOrDefault(string externalTransactionId)
         {
             var results =
-                Db.Find<PaymentTransactionBase>(Query<PaymentTransactionBase>.EQ(p => p.ExternalTransactionId,
+                Db.Find<Transaction>(Query<Transaction>.EQ(p => p.ExternalTransactionId,
                     externalTransactionId));
             return results.SingleOrDefault();
         }
 
         public SinglePspTransaction SinglePspTransactionByProviderTransactionId(string providerTransactionId)
         {
-            var result = Db.Find<PaymentTransactionBase>(Query<PaymentTransactionBase>.EQ(p => p.PspTransactionId,
+            var result = Db.Find<Transaction>(Query<Transaction>.EQ(p => p.PspTransactionId,
                 providerTransactionId));
 
             return SinglePspTransaction.GetFromIFindFluent(result);
@@ -33,23 +33,23 @@ namespace Persistence.Services
 
         public PaymentTransaction SingleByPreauthTransactionId(ObjectId<PreauthTransaction> preauthTransactionId)
         {
-            var result = Db.Find<PaymentTransactionBase>(Query.And(
+            var result = Db.Find<Transaction>(Query.And(
                 Query<PaymentTransaction>.EQ(p => p.PreauthTransactionId, preauthTransactionId.Untyped),
                 MongoQuery.TypeEq(nameof(PaymentTransaction)))).SingleOrDefault();
 
             return result as PaymentTransaction;
         }
 
-        public bool UpdateTransactionSeqNumber(PaymentTransactionBase paymentTransaction, int sequenceNumber)
+        public bool UpdateTransactionSeqNumber(Transaction transaction, int sequenceNumber)
         {
-            var count = Db.UpdateSafe<PaymentTransactionBase>(
-                Query<PaymentTransactionBase>.EQ(p => p.Id, paymentTransaction.Id),
-                Update<PaymentTransactionBase>.Set(p => p.SequenceNumber, sequenceNumber));
+            var count = Db.UpdateSafe<Transaction>(
+                Query<Transaction>.EQ(p => p.Id, transaction.Id),
+                Update<Transaction>.Set(p => p.SequenceNumber, sequenceNumber));
 
             if (count <= 0) 
                 return false;
 
-            paymentTransaction.SequenceNumber = sequenceNumber;
+            transaction.SequenceNumber = sequenceNumber;
 
             return true;
         }
