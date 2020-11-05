@@ -6,7 +6,7 @@ namespace Persistence.Models
 {
     public class SinglePspTransaction
     {
-        private readonly List<PaymentTransactionBase> _all = new List<PaymentTransactionBase>();
+        private readonly List<Transaction> _all = new List<Transaction>();
         private readonly List<RefundTransaction> _refunds;
 
         public SinglePspTransaction(Transaction transaction)
@@ -39,7 +39,7 @@ namespace Persistence.Models
             return _refunds.SingleOrDefault(r => r.SequenceNumber == sequenceNumber);
         }
 
-        public PaymentTransactionBase GetByExternalTransactionId(string transactionId)
+        public Transaction GetByExternalTransactionId(string transactionId)
         {
             return string.IsNullOrEmpty(transactionId) ? null : _all.SingleOrDefault(t => t.ExternalTransactionId == transactionId);
         }

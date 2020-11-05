@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Billwerk.Payment.PayOne\Billwerk.Payment.PayOne.csproj" />
+      <ProjectReference Include="..\..\..\src2\Billwerk.Payment.SDK\Billwerk.Payment.SDK.csproj" />      
     </ItemGroup>
 
 </Project>

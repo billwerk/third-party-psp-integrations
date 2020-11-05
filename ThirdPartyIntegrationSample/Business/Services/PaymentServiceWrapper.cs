@@ -294,22 +294,22 @@ namespace Business.Services
                 return false;
             }
 
-            if (sequenceNumber > paymentTransaction.SequenceNumber)
+            if (sequenceNumber > transaction.SequenceNumber)
             {
-                wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(paymentTransaction, sequenceNumber);
+                wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(transaction, sequenceNumber);
                 if (!wasUpdated)
                 {
                     _logger.LogError(
-                        $"Updating SequenceNumber to {sequenceNumber} for transaction {paymentTransaction.Id} failed");
+                        $"Updating SequenceNumber to {sequenceNumber} for transaction {transaction.Id} failed");
                 }
             }
 
             if (!wasSkipped)
             {
-                var successOperations = paymentTransaction.SequenceNumber;
+                var successOperations = transaction.SequenceNumber;
                 if (sequenceNumber + 1 < successOperations)
                 {
-                    _logger.LogDebug($"Skip webhook for transactionId={paymentTransaction.Id} because it's old");
+                    _logger.LogDebug($"Skip webhook for transactionId={transaction.Id} because it's old");
 
                     {
                         objectResult = BuildAcceptResult();
@@ -320,7 +320,7 @@ namespace Business.Services
             else if (!wasUpdated)
             {
                 _logger.LogDebug(
-                    $"Skip webhook for transactionId={paymentTransaction.Id} because of irrelevant webhook action and irrelevant sequence number");
+                    $"Skip webhook for transactionId={transaction.Id} because of irrelevant webhook action and irrelevant sequence number");
 
                 {
                     objectResult = BuildAcceptResult();
@@ -363,7 +363,7 @@ namespace Business.Services
             else
             {
                 var referencedTransaction = pspTransaction.GetByExternalTransactionId(ts.Param);
-                paymentTransaction = ts.TxAction == RefundAction
+                transaction = ts.TxAction == RefundAction
                     ? pspTransaction.GetRefundTransaction(int.Parse(ts.Sequencenumber))
                     : pspTransaction.GetLatest();
 
@@ -715,7 +715,7 @@ namespace Business.Services
                 
             }
 
-            paymentTransaction.Chargebacks.Add(externalPaymentChargebackItemDTO);
+            transaction.Chargebacks.Add(externalPaymentChargebackItemDTO);
         }
 
         #endregion private methods
