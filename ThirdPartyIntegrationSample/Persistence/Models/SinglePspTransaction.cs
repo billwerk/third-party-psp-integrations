@@ -34,8 +34,11 @@ namespace Persistence.Models
             return _all.OrderByDescending(t => t.Id).FirstOrDefault();
         }
 
-        public RefundTransaction GetRefundTransaction(int sequenceNumber)
+        public RefundTransaction GetRefundTransaction(string refundReference)
         {
+            //TODO remove SequenceNumber from transaction data
+            //It's PayOne specific
+            var sequenceNumber = int.Parse(refundReference);
             return _refunds.SingleOrDefault(r => r.SequenceNumber == sequenceNumber);
         }
 

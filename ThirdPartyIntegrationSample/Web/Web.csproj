@@ -18,9 +18,17 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\src2\Billwerk.PSP\Billwerk.Payment.PayOne\Billwerk.Payment.PayOne.csproj" />
       <ProjectReference Include="..\Business\Business.csproj" />
       <ProjectReference Include="..\Persistence\Persistence.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="Billwerk.Payment.PayOne, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+        <HintPath>..\..\Libs\Billwerk.Payment.PayOne.dll</HintPath>
+      </Reference>
+      <Reference Include="Billwerk.Payment.SDK, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+        <HintPath>..\..\Libs\Billwerk.Payment.SDK.dll</HintPath>
+      </Reference>
     </ItemGroup>
 
 </Project>

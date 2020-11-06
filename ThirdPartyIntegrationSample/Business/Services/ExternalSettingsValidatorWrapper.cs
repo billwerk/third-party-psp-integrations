@@ -16,7 +16,7 @@ namespace Business.Services
 
         private readonly PayOnePspSettingsValidator _payOneExternalSettingsValidator;
 
-        protected ExternalSettingsValidatorWrapper(IExternalIntegrationInfoWrapper externalIntegrationInfo, PayOnePspSettingsValidator payOneExternalSettingsValidator)
+        public ExternalSettingsValidatorWrapper(IExternalIntegrationInfoWrapper externalIntegrationInfo, PayOnePspSettingsValidator payOneExternalSettingsValidator)
         {
             _externalIntegrationInfo = externalIntegrationInfo;
             _payOneExternalSettingsValidator = payOneExternalSettingsValidator;

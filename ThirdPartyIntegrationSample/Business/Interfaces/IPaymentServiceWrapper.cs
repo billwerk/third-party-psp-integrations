@@ -10,7 +10,7 @@ namespace Business.Interfaces
 {
     public interface IPaymentServiceWrapper
     { 
-        ObjectResult HandleWebhookAsync(string requestString);
+        ObjectResult HandleWebhookAsync(PaymentServiceProvider provider, string requestString);
         Task<ExternalPaymentTransactionDTO> SendPayment(PaymentServiceProvider provider, ExternalPaymentRequestDTO paymentDto);
         Task<ExternalRefundTransactionDTO> SendRefund(PaymentServiceProvider provider, string transactionId, ExternalRefundRequestDTO dto);
         Task<ExternalPreauthTransactionDTO> SendPreauth(PaymentServiceProvider provider, ExternalPreauthRequestDTO dto);

@@ -1,11 +1,9 @@
 using System;
 using Billwerk.Payment.SDK.DTO;
-using Billwerk.Payment.SDK.Interfaces;
-using Billwerk.Payment.SDK.Interfaces.Models;
 
 namespace Persistence.Models
 {
-    public class PreauthTransaction : Transaction, IPspPreauthTransaction
+    public class PreauthTransaction : Transaction
     {
         public decimal AuthorizedAmount { get; set; }
 

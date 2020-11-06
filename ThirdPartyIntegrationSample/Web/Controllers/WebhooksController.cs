@@ -1,4 +1,5 @@
 using System.IO;
+using Business.Enums;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,7 +24,7 @@ namespace Web.Controllers
         {
             using var streamReader = new StreamReader(Request.Body);
             var requestString = streamReader.ReadToEndAsync().Result;
-            return _paymentService.HandleWebhookAsync(requestString);
+            return _paymentService.HandleWebhookAsync(PaymentServiceProvider.PayOne, requestString);
         }
     }
 }

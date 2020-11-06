@@ -69,6 +69,9 @@ namespace Web {
             //PayOne
             services.AddScoped<IPayOnePspWrapper, PayOnePspWrapper>();
             services.AddScoped<IPayOneInitialTokenDecoder, PayOneInitialTokenDecoder>();
+            services.AddScoped<PayOnePspService, PayOnePspService>();
+            services.AddScoped<PayOnePspSettingsValidator, PayOnePspSettingsValidator>();
+            
             //PayOne
             
             services.AddScoped<IEncoder, Encoder>();

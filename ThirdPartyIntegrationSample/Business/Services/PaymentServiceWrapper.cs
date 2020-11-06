@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Billwerk.Payment.PayOne.Model;
 using Billwerk.Payment.PayOne.Models;
 using Billwerk.Payment.PayOne.Services;
 using Billwerk.Payment.SDK.DTO.ExternalIntegration;
@@ -25,7 +23,6 @@ using MongoDB.Bson;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using NodaTime;
 using Persistence.Interfaces;
 using Persistence.Models;
 using Persistence.Mongo;
@@ -36,7 +33,6 @@ namespace Business.Services
     {
         private const string NotFoundErrorMessage = "Not Found";
         private const string InvalidPreconditionsErrorMessage = "Transaction Id is empty";
-        private const string RefundAction = "refund";
 
         private readonly PayOnePspService _payOnePaymentService;
         private readonly IPaymentTransactionService _paymentTransactionService;
@@ -114,7 +110,8 @@ namespace Business.Services
                 };
             }
 
-            var refundResult = await GetPaymentService(provider).SendRefund(dto, targetTransaction);
+            var paymentInfo = GetPaymentInfo(provider, targetTransaction);
+            var refundResult = await GetPaymentService(provider).SendRefund(dto, paymentInfo);
 
             if (refundResult.Status == PaymentTransactionNewStatus.Succeeded)
             {
@@ -240,7 +237,8 @@ namespace Business.Services
             var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
             if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
             {
-                return await GetPaymentService(provider).SendCancellation(preauthTransaction.ToRequestDto(), preauthTransaction);
+                var preauthInfo = GetPreauthInfo(provider, preauthTransaction);
+                return await GetPaymentService(provider).SendCancellation(preauthTransaction.ToRequestDto(), preauthInfo);
             }
 
             return new ExternalPaymentCancellationDTO
@@ -252,55 +250,138 @@ namespace Business.Services
             };
         }
 
-        public ObjectResult HandleWebhookAsync(string requestString)
+        private IPreauthInfo GetPreauthInfo(PaymentServiceProvider provider, PreauthTransaction preauthTransaction)
         {
+            if (preauthTransaction!=null)
+            {
+                if (provider == PaymentServiceProvider.PayOne)
+                {
+                    return new PayOnePreauthInfo
+                    {
+                        Role = preauthTransaction.Role,
+                        BearerDto = preauthTransaction.Bearer,
+                        PspTransactionId = preauthTransaction.PspTransactionId
+                    };
+                }
+                throw new NotSupportedException($"Provider={provider} is not supported!");
+            }
+
+            return null;
+        }
+        
+        private IPaymentInfo GetPaymentInfo(PaymentServiceProvider provider, PaymentTransaction paymentTransaction)
+        {
+            if (paymentTransaction!=null)
+            {
+                if (provider == PaymentServiceProvider.PayOne)
+                {
+                    return new PayOnePaymentInfo
+                    {
+                        ChargebacksAmount = paymentTransaction.Chargebacks?.Sum(c => c.Amount),
+                        PaidAmount = paymentTransaction.Payments?.Sum(c => c.Amount),
+                        ChargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount),
+                        RefundedAmount = paymentTransaction.RefundedAmount,
+                        RequestedAmount = paymentTransaction.RequestedAmount,
+                        SequenceNumber = paymentTransaction.SequenceNumber,
+                        InvoiceReferenceCode = paymentTransaction.InvoiceReferenceCode,
+                        PspTransactionId = paymentTransaction.PspTransactionId
+                    };
+                }
+                throw new NotSupportedException($"Provider={provider} is not supported!");
+            }
+
+            return null;
+        }
+        
+        private IRefundInfo GetRefundInfo(PaymentServiceProvider provider, RefundTransaction refundTransaction)
+        {
+            if (refundTransaction != null)
+            {
+                if (provider == PaymentServiceProvider.PayOne)
+                {
+                    var refund = new PayOneRefundInfo();
+                    if (refundTransaction.Refunds != null)
+                    {
+                        refund.RefundReferences = refundTransaction.Refunds.Select(r => r.ExternalItemId).ToList();
+                    }
+
+                    return refund;
+
+                }
+                throw new NotSupportedException($"Provider={provider} is not supported!");
+            }
+
+            return null;
+        }
+
+        public ObjectResult HandleWebhookAsync(PaymentServiceProvider provider, string requestString)
+        {
+            //return await GetPaymentService(provider).SendCancellation(preauthTransaction.ToRequestDto(), preauthTransaction);
             var result = requestString.Replace("\n", string.Empty);
             try
             {
-                var ts = new TransactionStatus(result);
+                var service = GetPaymentService(provider);
+                var data = service.GetDataFromWebhook(result);
+                _logger.LogDebug($"{provider}: provider transaction id {data.PspTransactionId}");
 
-                _logger.LogDebug($"PayOne: provider transaction id {ts.TxId}, status {ts.TxAction}");
-
-                if (TryToIdentifyTransaction(ts, out var paymentTransaction, out var buildAcceptResult))
+                if (TryToIdentifyTransaction(provider, data, out var transaction, out var buildAcceptResult))
+                {
                     return buildAcceptResult;
+                }
 
-                MapPaymentTransactionStatus(ts, paymentTransaction, out var wasSkipped);
+                IPaymentInfo paymentInfo = null;
+                IRefundInfo refundInfo = null;
+                PaymentTransaction paymentTransaction = null;
+                if (transaction is PaymentTransaction payment)
+                {
+                    paymentInfo = GetPaymentInfo(provider, payment);                    
+                }
+                else if (transaction is RefundTransaction refund)
+                {
+                    refundInfo = GetRefundInfo(provider, refund);
+                    paymentTransaction = _paymentTransactionService.SingleByIdOrDefault(refund.PaymentTransactionId.Untyped) as PaymentTransaction;
+                    paymentInfo = GetPaymentInfo(provider, paymentTransaction);
+                }
+                else
+                {
+                    throw new NotImplementedException($"Transaction type={transaction.GetType()} handling is not implemented!");
+                }
 
-                if (AnalyzeSequenceNumber(ts, paymentTransaction, wasSkipped, out var objectResult)) return objectResult;
+                service.HandleWebhook(data, paymentInfo,  refundInfo, out var newPayment, out var newRefund, out var newChargeback, out var wasSkipped);
+                RegisterPayment(transaction, newPayment);
+                RegisterRefund(transaction, newRefund, paymentTransaction);
+                RegisterChargeback(transaction, newChargeback);
+                if (AnalyzeSequenceNumber(data.SequenceNumber, transaction, wasSkipped, out var objectResult))
+                {
+                    return objectResult;
+                }
 
-                _paymentTransactionService.Update(paymentTransaction);
+                _paymentTransactionService.Update(transaction);
 
-                BackgroundJob.Enqueue<IWebhookService>(service =>
-                    service.Send(paymentTransaction.WebhookTarget,PaymentServiceProvider.PayOne, paymentTransaction.ExternalTransactionId));
+                BackgroundJob.Enqueue<IWebhookService>(service => service.Send(transaction.WebhookTarget,PaymentServiceProvider.PayOne, transaction.ExternalTransactionId));
 
                 return BuildAcceptResult();
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Failed to process PayOne webhook: {result}", ex);
+                _logger.LogError($"Failed to process {provider} webhook: {result}", ex);
 
                 return new InternalServerErrorMessageResult("Could not process event");
             }
         }
 
-        private bool AnalyzeSequenceNumber(TransactionStatus ts, Transaction transaction, bool wasSkipped,
+        private bool AnalyzeSequenceNumber(int sequenceNumber, Transaction transaction, bool wasSkipped,
             out ObjectResult objectResult)
         {
             var wasUpdated = false;
             objectResult = null;
-
-            if (!int.TryParse(ts.Sequencenumber, out var sequenceNumber))
-            {
-                return false;
-            }
 
             if (sequenceNumber > transaction.SequenceNumber)
             {
                 wasUpdated = _paymentTransactionService.UpdateTransactionSeqNumber(transaction, sequenceNumber);
                 if (!wasUpdated)
                 {
-                    _logger.LogError(
-                        $"Updating SequenceNumber to {sequenceNumber} for transaction {transaction.Id} failed");
+                    _logger.LogError($"Updating SequenceNumber to {sequenceNumber} for transaction {transaction.Id} failed");
                 }
             }
 
@@ -319,9 +400,7 @@ namespace Business.Services
             }
             else if (!wasUpdated)
             {
-                _logger.LogDebug(
-                    $"Skip webhook for transactionId={transaction.Id} because of irrelevant webhook action and irrelevant sequence number");
-
+                _logger.LogDebug($"Skip webhook for transactionId={transaction.Id} because of irrelevant webhook action and irrelevant sequence number");
                 {
                     objectResult = BuildAcceptResult();
                     return true;
@@ -331,21 +410,19 @@ namespace Business.Services
             return false;
         }
 
-        private bool TryToIdentifyTransaction(TransactionStatus ts, out Transaction transaction,
+        private bool TryToIdentifyTransaction(PaymentServiceProvider provider, IPspWebhookData data, out Transaction transaction,
             out ObjectResult buildAcceptResult)
         {
             buildAcceptResult = null;
 
-            var pspTransaction = _paymentTransactionService.SinglePspTransactionByProviderTransactionId(ts.TxId);
+            var pspTransaction = _paymentTransactionService.SinglePspTransactionByProviderTransactionId(data.PspTransactionId);
             if (pspTransaction == null)
             {
-                transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(ts.Param);
+                transaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(data.TransactionId);
 
                 if (transaction == null)
                 {
-                    _logger.LogWarning(
-                        $"PayOne: provider transaction not found (id={ts.TxId},our reference={ts.Param}). Probably it is a transaction of a different system");
-
+                    _logger.LogWarning($"{provider}: provider transaction not found (id={data.PspTransactionId},our reference={data.TransactionId}). Probably it is a transaction of a different system");
                     {
                         buildAcceptResult = BuildAcceptResult();
                         return true;
@@ -354,25 +431,22 @@ namespace Business.Services
 
                 if (transaction.GetType() == typeof(PreauthTransaction))
                 {
-                    var captureTransaction =
-                        _paymentTransactionService.SingleByPreauthTransactionId((transaction as PreauthTransaction)
-                            .GetId());
+                    var captureTransaction = _paymentTransactionService.SingleByPreauthTransactionId((transaction as PreauthTransaction).GetId());
                     if (captureTransaction != null) transaction = captureTransaction;
                 }
             }
             else
             {
-                var referencedTransaction = pspTransaction.GetByExternalTransactionId(ts.Param);
-                transaction = ts.TxAction == RefundAction
-                    ? pspTransaction.GetRefundTransaction(int.Parse(ts.Sequencenumber))
+                var referencedTransaction = pspTransaction.GetByExternalTransactionId(data.TransactionId);
+                transaction = data.IsRefundAction
+                    ? pspTransaction.GetRefundTransaction(data.RefundReference)
                     : pspTransaction.GetLatest();
 
                 //Todo: if Action is refund and transaction == null => External Refund
 
                 if (referencedTransaction == null || transaction == null)
                 {
-                    _logger.LogWarning($"PayOne: Webhook for transaction {ts.Param} is invalid. Rejecting request");
-
+                    _logger.LogWarning($"{provider}: Webhook for transaction {data.TransactionId} is invalid. Rejecting request");
                     {
                         buildAcceptResult = new BadRequestObjectResult(string.Empty);
                         return true;
@@ -439,7 +513,7 @@ namespace Business.Services
         }
 
         private bool GetPreauthInfoByRequest(ExternalPaymentRequestDTO externalPaymentRequest, PaymentServiceProvider provider,
-            out IPaymentPreauthInfo preauthInfo, out int sequenceNumber, out ExternalIntegrationErrorDTO error)
+            out IPreauthInfo preauthInfo, out int sequenceNumber, out ExternalIntegrationErrorDTO error)
         {
             sequenceNumber = 0;
             error = null;
@@ -502,220 +576,39 @@ namespace Business.Services
             return recurringToken.Id.ToString();
         }
 
-        //TODO TransactionStatus is payone specific, move to payone library
-        private static decimal GetChargebackFeeAmount(TransactionStatus status, PaymentTransaction transaction)
+        private void RegisterRefund(Transaction transaction, ExternalRefundItemDTO newRefund, PaymentTransaction paymentTransaction)
         {
-            var receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
-            var fee = receivable - (transaction.RequestedAmount - transaction.RefundedAmount);
-
-            if ((status.TxAction == "cancelation" || status.TxAction == "debit") && fee > 0m)
+            if (transaction is RefundTransaction refundTransaction)
             {
-                return fee;
-            }
-
-            return 0;
-        }
-
-        private void MapPaymentTransactionStatus(TransactionStatus status, Transaction transaction,
-            out bool wasSkipped)
-        {
-            decimal receivable = 0;
-            decimal balance = 0;
-            wasSkipped = false;
-
-            if (string.IsNullOrWhiteSpace(status.Receivable))
-            {
-                _logger.LogWarning("PayOne: Webhook data does not contain receivable value.");
-            }
-            else
-            {
-                receivable = decimal.Parse(status.Receivable, CultureInfo.InvariantCulture);
-            }
-
-            if (string.IsNullOrWhiteSpace(status.Balance))
-            {
-                _logger.LogWarning("PayOne: Webhook data does not contain balance value.");
-            }
-            else
-            {
-                balance = decimal.Parse(status.Balance, CultureInfo.InvariantCulture);
-            }
-
-            var paymentTransaction = transaction as PaymentTransaction;
-            var refundTransaction = transaction as RefundTransaction;
-            switch (status.TxAction)
-            {
-                case "appointed":
-                case "capture":
-                    wasSkipped = true;
-                    // This status should not be relevant for any transaction. Initial Succeeded or PreliminarySucceeded
-                    // is set during actual payment request already so this is redundant
-                    break;
-                case "paid":
-                case "underpaid":
-                    if (paymentTransaction != null)
-                    {
-                        var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
-                        var chargebacksAmount = paymentTransaction.Chargebacks?.Sum(c => c.Amount) ?? 0;
-                        var paidAmount = paymentTransaction.Payments?.Sum(c => c.Amount) ?? 0;
-                        var targetBalance = paymentTransaction.RequestedAmount + chargebacksFee + chargebacksAmount -
-                                            paidAmount;
-
-                        RegisterPayment(status, paymentTransaction, targetBalance - balance);
-                    }
-                    else
-                    {
-                        wasSkipped = true;
-                    }
-
-                    break;
-                case "refund":
-                    if (refundTransaction != null)
-                    {
-                        paymentTransaction =
-                            _paymentTransactionService.SingleByIdOrDefault(refundTransaction.PaymentTransactionId.Untyped) as
-                                PaymentTransaction;
-                        if (paymentTransaction != null)
-                        {
-                            var chargebacksFee = paymentTransaction.Chargebacks?.Sum(c => c.FeeAmount) ?? 0;
-                            var refundedAmount = paymentTransaction.RequestedAmount + chargebacksFee -
-                                                 paymentTransaction.RefundedAmount - receivable;
-                            if (int.TryParse(status.Sequencenumber, out var sequenceNumber))
-                            {
-                                // Ignore webhook, because this status is already handled
-                                if (refundTransaction.Refunds != null &&
-                                    refundTransaction.Refunds.Any(s => s.ExternalItemId == sequenceNumber.ToString()))
-                                {
-                                    wasSkipped = true;
-                                    return;
-                                }
-
-                                RegisterRefund(sequenceNumber, refundedAmount, refundTransaction);
-
-                                if (refundTransaction.Refunds != null)
-                                {
-                                    paymentTransaction.RefundedAmount += refundTransaction.Refunds.Sum(r => r.Amount);
-                                    _paymentTransactionService.Update(paymentTransaction);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            wasSkipped = true;
-                        }
-                    }
-                    else
-                    {
-                        wasSkipped = true;
-                    }
-
-                    break;
-                case "cancelation":
-                    if (paymentTransaction != null)
-                    {
-                        RegisterChargeback(status, paymentTransaction, paymentTransaction.RequestedAmount);
-                    }
-                    else
-                    {
-                        wasSkipped = true;
-                    }
-
-                    break;
-                default:
-                    wasSkipped = true;
-                    return;
+                refundTransaction.Refunds ??= new List<ExternalRefundItemDTO>();
+                refundTransaction.Refunds.Add(newRefund);
+                paymentTransaction.RefundedAmount += refundTransaction.Refunds.Sum(r => r.Amount);
+                //TODO implement per property update
+                _paymentTransactionService.Update(paymentTransaction);
             }
         }
 
-        private static void RegisterRefund(int sequenceNumber, decimal refundedAmount, RefundTransaction refundTransaction)
+        private static void RegisterPayment(Transaction transaction, ExternalPaymentItemDTO newPayment)
         {
-            var now = DateTime.Now;
-            var externalRefundItemDTO = new ExternalRefundItemDTO
+            if (transaction is PaymentTransaction paymentTransaction)
             {
-                ExternalItemId = sequenceNumber.ToString(),
-                Amount = refundedAmount,
-                BookingDate = new LocalDate(now.Year, now.Month, now.Day)
-            };
-            refundTransaction.Refunds ??= new List<ExternalRefundItemDTO>();
-            refundTransaction.Refunds.Add(externalRefundItemDTO);
+                paymentTransaction.Payments ??= new List<ExternalPaymentItemDTO>();
+                paymentTransaction.Payments.Add(newPayment);
+            }
         }
 
-        private static void RegisterPayment(TransactionStatus status, PaymentTransaction transaction, decimal amount)
+        private static void RegisterChargeback(Transaction transaction, ExternalPaymentChargebackItemDTO newChargeback)
         {
-            transaction.Payments ??= new List<ExternalPaymentItemDTO>();
-            var now = DateTime.Now;
-            transaction.Payments.Add(new ExternalPaymentItemDTO
+            if (transaction is PaymentTransaction paymentTransaction)
             {
-                ExternalItemId = status.Sequencenumber,
-                Amount = amount,
-                BookingDate = new LocalDate(now.Year, now.Month, now.Day)
-            });
-        }
-
-        private static void RegisterChargeback(TransactionStatus status, PaymentTransaction transaction, decimal amount)
-        {
-            transaction.Chargebacks ??= new List<ExternalPaymentChargebackItemDTO>();
-            var now = DateTime.Now;
-            var externalPaymentChargebackItemDTO = new ExternalPaymentChargebackItemDTO
-            {
-                Amount = amount,
-                BookingDate = new LocalDate(now.Year, now.Month, now.Day),
-                PspReasonCode = status.FailedCause,
-                FeeAmount = GetChargebackFeeAmount(status, transaction)
-            };
-
-            if (string.IsNullOrWhiteSpace(status.FailedCause) == false)
-            {
-                var failedCause = status.FailedCause.ToLower();
-
-                switch (failedCause)
+                paymentTransaction.Chargebacks ??= new List<ExternalPaymentChargebackItemDTO>();
+                if (newChargeback.Reason == ExternalPaymentChargebackReason.Unknown)
                 {
-                    case "soc":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.InsufficientBalance;
-                        externalPaymentChargebackItemDTO.PspReasonMessage = "Insufficient funds";
-                        break;
-                    case "cka":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.BearerInvalid;
-                        externalPaymentChargebackItemDTO.PspReasonMessage = "Account expired";
-                        break;
-                    case "uan":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.BearerInvalid;
-                        externalPaymentChargebackItemDTO.PspReasonMessage =
-                            "Account no. / name not identical, incorrect or savings account";
-                        break;
-                    case "ndd":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.BearerInvalid;
-                        externalPaymentChargebackItemDTO.PspReasonMessage = "No direct debit";
-                        break;
-                    case "cb":
-                    case "obj":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.Canceled;
-                        externalPaymentChargebackItemDTO.PspReasonMessage =
-                            "Objection: The payer objects to the direct debit.";
-                        break;
-                    case "cbn":
-                    case "cbk":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.Canceled;
-                        externalPaymentChargebackItemDTO.PspReasonMessage = "Credit card chargeback";
-                        break;
-                    case "ret":
-                    case "nelv":
-                    case "ncc":
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.Rejected;
-                        externalPaymentChargebackItemDTO.PspReasonMessage = "cannot be collected";
-                        break;
-                    default:
-                        externalPaymentChargebackItemDTO.Reason = ExternalPaymentChargebackReason.Unknown;
-                        transaction.StatusHistory.Add(PaymentTransactionNewStatus.Failed);
-                        break;
+                    paymentTransaction.StatusHistory.Add(PaymentTransactionNewStatus.Failed);
                 }
 
-                if (transaction.Status == PaymentTransactionNewStatus.Failed) return;
-
-                
+                paymentTransaction.Chargebacks.Add(newChargeback);
             }
-
-            transaction.Chargebacks.Add(externalPaymentChargebackItemDTO);
         }
 
         #endregion private methods
