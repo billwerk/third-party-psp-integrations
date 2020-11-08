@@ -17,6 +17,6 @@ namespace Business.Interfaces
         Task<ExternalPaymentTransactionDTO> FetchPayment(PaymentServiceProvider provider, string transactionId);
         Task<ExternalRefundTransactionDTO> FetchRefund(PaymentServiceProvider provider, string transactionId);
         Task<ExternalPreauthTransactionDTO> FetchPreauth(PaymentServiceProvider provider, string transactionId);
-        public Task<ExternalPaymentCancellationDTO> SendCancellation(PaymentServiceProvider provider, string transactionId);
+        public Task<ExternalPaymentCancellationDTO> SendCancellation(PaymentServiceProvider provider, ExternalPaymentCancellationRequestDTO dto);
     }
 }

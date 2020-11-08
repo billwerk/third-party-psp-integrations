@@ -1,4 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration;
+using Billwerk.Payment.SDK.DTO.ExternalIntegration.Cancellation;
 using Business.Enums;
 using Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -22,9 +25,15 @@ namespace Web.Controllers
 
         [HttpPost]
         [Route("api/payment/{id}/cancel")]
-        public async Task<ObjectResult> Cancel(string id)
+        public async Task<ObjectResult> Cancel(string id, ExternalPaymentCancellationRequestDTO dto)
         {
-            return BuildResponse(await _paymentService.SendCancellation(PaymentServiceProvider.PayOne, id));
+            //TODO review implementation 
+            if (id != dto.TransactionId)
+            {
+                throw new ArgumentException("id != dto.TransactionId!"); 
+            }
+            
+            return BuildResponse(await _paymentService.SendCancellation(PaymentServiceProvider.PayOne, dto));
         }
     }
 }

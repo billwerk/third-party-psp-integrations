@@ -158,6 +158,9 @@ namespace Business.Services
             preauthTransaction.MerchantSettings = (ExternalIntegrationMerchantPspSettings)dto.MerchantPspSettings;
             preauthTransaction.Role = dto.PaymentMeansReference.Role;
             preauthTransaction.WebhookTarget = dto.WebhookTarget;
+            preauthTransaction.InvoiceReferenceCode = dto.InvoiceReferenceCode;
+            preauthTransaction.TransactionReferenceText = dto.TransactionReferenceText;
+            preauthTransaction.TransactionInvoiceReferenceText = dto.TransactionInvoiceReferenceText;
 
             preauthDto.ExternalTransactionId = preauthTransaction.Id.ToString();
 
@@ -232,20 +235,20 @@ namespace Business.Services
             });
         }
 
-        public async Task<ExternalPaymentCancellationDTO> SendCancellation(PaymentServiceProvider provider, string transactionId)
+        public async Task<ExternalPaymentCancellationDTO> SendCancellation(PaymentServiceProvider provider, ExternalPaymentCancellationRequestDTO dto)
         {
-            var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(transactionId);
+            var paymentTransaction = _paymentTransactionService.SingleByExternalTransactionIdOrDefault(dto.TransactionId);
             if (paymentTransaction != null && paymentTransaction is PreauthTransaction preauthTransaction)
             {
                 var preauthInfo = GetPreauthInfo(provider, preauthTransaction);
-                return await GetPaymentService(provider).SendCancellation(preauthTransaction.ToRequestDto(), preauthInfo);
+                return await GetPaymentService(provider).SendCancellation(dto, preauthInfo);
             }
 
             return new ExternalPaymentCancellationDTO
             {
                 Error = new ExternalIntegrationErrorDTO
                 {
-                    ErrorMessage = $"The transaction with id {transactionId} hasn't been found."
+                    ErrorMessage = $"The transaction with id {dto.TransactionId} hasn't been found."
                 }
             };
         }
@@ -260,7 +263,12 @@ namespace Business.Services
                     {
                         Role = preauthTransaction.Role,
                         BearerDto = preauthTransaction.Bearer,
-                        PspTransactionId = preauthTransaction.PspTransactionId
+                        PspTransactionId = preauthTransaction.PspTransactionId,
+                        Amount = preauthTransaction.RequestedAmount,
+                        Currency = preauthTransaction.Currency,
+                        InvoiceReferenceCode = preauthTransaction.InvoiceReferenceCode,
+                        TransactionReferenceText = preauthTransaction.TransactionReferenceText,
+                        TransactionInvoiceReferenceText = preauthTransaction.TransactionInvoiceReferenceText
                     };
                 }
                 throw new NotSupportedException($"Provider={provider} is not supported!");
@@ -316,7 +324,6 @@ namespace Business.Services
 
         public ObjectResult HandleWebhookAsync(PaymentServiceProvider provider, string requestString)
         {
-            //return await GetPaymentService(provider).SendCancellation(preauthTransaction.ToRequestDto(), preauthTransaction);
             var result = requestString.Replace("\n", string.Empty);
             try
             {
@@ -459,6 +466,7 @@ namespace Business.Services
 
         private static OkObjectResult BuildAcceptResult()
         {
+            //TODO PayOne specific
             return new OkObjectResult(new ByteArrayContent(new UTF8Encoding().GetBytes("TSOK")));
         }
 

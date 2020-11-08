@@ -12,5 +12,11 @@ namespace Persistence.Models
         public PaymentBearerDTO Bearer { get; set; }
 
         public string RecurringToken { get; set; }
+        
+        public string InvoiceReferenceCode { get; set; }
+        
+        public string TransactionInvoiceReferenceText { get; set; }
+
+        public string TransactionReferenceText { get; set; }
     }
 }
