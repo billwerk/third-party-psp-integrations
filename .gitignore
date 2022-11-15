@@ -1,0 +1,71 @@
+# .gitignore file
+# note that these files can be overriden in child directories, which we'll make good use of...
+# ignore binary output FOLDERS
+bin/
+Bin/
+obj/
+TestResults/
+Logs/
+deploy/
+packages/
+publish/
+
+# Ignore the initial Mongofile
+ Deployment/additionalFiles/initMongo.json
+
+# Visual Studio 2015 cache/options directory
+.vs/
+
+# ignore binary files on top
+*.lib
+*.dll
+*.exe
+*.pdb
+
+# Ignore compressed files
+*.7z
+*.dmg
+*.gz
+*.bz
+*.bz2
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# logs
+*.log
+*.log.*
+*.log.?
+Debug.log.*
+
+# test results
+*.trx
+
+# chart.png
+chart.png
+
+#user files
+*.user
+*.suo
+
+#config
+mongohost.config
+
+# ignore temporary, cache, backup
+*.bak
+*.cache
+
+# originals from merger
+*.orig
+
+*.less.debug.css
+
+# OS generated files
+.DS_Store
+._.*
+._*
+
+.idea/
+
