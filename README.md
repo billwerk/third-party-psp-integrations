@@ -50,7 +50,7 @@ must be implemented**. All of this can be designed in any preferable way, with a
 architecture, data storage and so on.
 
 The `PaymentGateway` web project contains endpoints that are mostly needed to be implemented in order to achieve correct communication
-with billwerk. It is a practical initial point of implementation. 
+with billwerk. It works perfectly as an initial point of implementation. 
 Requests and responses models used inside `PaymentGateway` web project refer to `PaymentGateway.Domain.BillwerkSDK` folder. 
 They are connected together by `PaymentGateway` API endpoints. That is a crucial part of 3-rd party PSP implementation.
 
