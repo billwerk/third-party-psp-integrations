@@ -13,7 +13,7 @@ More information about the Payment gateway can be found in:
 - [_About_](#About)
 - [_Code structure_](#Code-structure) 
 - [_Setup & Launch_](#Setup-&-Launch)
-- [_Example workflows_](#Example workflows)
+- [_Example workflows_](#Example-workflows)
 
 ### About
 
@@ -61,8 +61,9 @@ Repository also includes two projects related to payment providers:
     - a battle-ready implementation of [Reepay's](https://reepay.com/) PSP with a _credit card_ payment role,
   which fully relies on `PaymentGateway.Domain.BillwerkSDK.DTO.Requests` models and it produces responses in
   `PaymentGateway.Domain.BillwerkSDK.DTO.Responses` models.  
-  >"**Battle-ready**" - any kind of billwerk-related payment operations
-  can be processed via this sample application. You can test it if you have Reepay API test account credentials (see Reepay chapter).
+  
+>"**Battle-ready**" - any kind of billwerk-related payment operations
+  that can be processed via this sample application. You can test it if you have Reepay API test account credentials (see Reepay chapter).
 
 ### _Setup & Launch_
 
@@ -71,7 +72,7 @@ To launch the sample, you must have installed [.NET 6 SDK](https://dotnet.micros
 In `PaymentGateway` there is a `appsettings.json` file, which contains basic application settings. By default, the application's url, specified in this file, is a `localhost:7086`.
 This settings file also includes `PlaygroundEnvironment` section with two parameters:
 
-1. `UseInMemoryStorage` - a boolean value. 
+1. `UseInMemoryStorage` - a boolean value: 
    -  `true` (default value): application stores payment transaction data in memory, during application enablement. 
    In this case, you can use `PaymentGateway.InMemoryStorageController` GET https://localhost:7086/api/InMemoryStorage to fetch current stored data. 
    - `false`: application uses MongoDb as data storage. It is required to [install MongoDb](https://www.mongodb.com/docs/manual/installation/) on your local environment.
@@ -80,7 +81,7 @@ This settings file also includes `PlaygroundEnvironment` section with two parame
 >However, if the database with such name exists already (e.g. after the second launch of application), the application **does not** create a new database, it just uses an existing one.
 Using local MongoDb as a data storage can be simplified process of testing an application, because it does not disappear after an application shutdown, **but it is a completely optional solution**.
 
-2. `CurrentPaymentProvider`: integer value.
+2. `CurrentPaymentProvider` - an integer value:
   - ''2'' (default value): application uses the `FakeProvider` as a payment provider. 
 >Using `FakeProvider` doesn't produce any external calls and used hardcoded responses 
   in `Billwerk.SDK` models' structure. Useful for a testing purpose.
