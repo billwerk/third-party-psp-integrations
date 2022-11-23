@@ -65,7 +65,7 @@ Repository also includes two projects related to payment providers:
 >"**Battle-ready**" - any kind of billwerk-related payment operations
   that can be processed via this sample application. You can test it if you have Reepay API test account credentials (see Reepay chapter).
 
-### _Setup & Launch_
+### Setup & Launch
 
 To launch the sample, you must have installed [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) on your local environment. No more external dependencies needed.
 
@@ -89,7 +89,7 @@ Using local MongoDb as a data storage can be simplified process of testing an ap
 >**Important note:** before setting this parameter, you must have your own Reepay test account. If you already have it, put your Reepay **private API key** and **webhook secret** into `AppBuilder.CreateDefaultSettings` -> `...SaveSettings(new ReepaySettings...` place. 
 > It will create Reepay settings with your credentials on application start.
 
-### _Example workflows_
+### Example workflows
 
 
  
