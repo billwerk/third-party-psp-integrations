@@ -1,10 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Billwerk.Payment.SDK.DTO.Requests;
+﻿using Billwerk.Payment.SDK.DTO.Requests;
 using Billwerk.Payment.SDK.DTO.Requests.OrderData;
 using Billwerk.Payment.SDK.DTO.Requests.PayerData;
 using Billwerk.Payment.SDK.DTO.Requests.PaymentReferenceData;
 using PaymentGateway.Application.BillwerkSDK.DTO.Requests.Interfaces;
-using PaymentGateway.Domain.Shared.ValueObjects;
 
 namespace PaymentGateway.Domain.BillwerkSDK.DTO.Requests
 {

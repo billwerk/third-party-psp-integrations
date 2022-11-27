@@ -6,12 +6,6 @@ using PaymentGateway.Domain.Modules.Transactions.Refund;
 
 namespace PaymentGateway.Domain.Modules.Transactions.TransactionState.Abstraction;
 
-//In billwerk we used smth like ITransactionResponseDto as base for revisions (transaction state here)
-//I don't see any reason, to copypaste inside revision immutable for transaction itself, data, like:
-//Currency, RequestedAmount, PspTransactionId(?), BillwerkTransactionId
-//This fields must not be changed during whole transaction lifecycle!
-//Normally, we just receive new status (in ideal case).
-
 [BsonDiscriminator(Required = true)]
 [BsonKnownTypes(typeof(PreauthTransactionState), 
     typeof(PaymentTransactionState), 

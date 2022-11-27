@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using Billwerk.Payment.SDK.Enums;
+﻿using Billwerk.Payment.SDK.Enums;
 
 namespace Billwerk.Payment.SDK.DTO.Requests.InvoiceData
 {
