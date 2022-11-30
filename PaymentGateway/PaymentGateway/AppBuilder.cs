@@ -77,7 +77,7 @@ public static class AppBuilder
                 Description = "Following REST API documentation describes all data components that are included in the implementation of the 3rd party PSP integration. It enlists endpoints playing a major role in the process of pre-authorization, payments and refunds. " +
                               @"The additional Schema section consists of Data transfer objects (DTOs) of requests and responds with descriptions of their parameters.  
                                 To have better understanding of the Payment Gateway integration, please check our public documentation about [Payment Gateway](https://billwerk.gitbook.io/home/) or our [repository](https://github.com/billwerk/third-party-psp-integrations) with a sample application.  
-                                [Contact the support](support@billwerk.com).",
+                                If you need any additional information, click [Contact the support](support@billwerk.com).",
                 Version = "v1",
             });
         });
