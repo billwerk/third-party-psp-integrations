@@ -7,13 +7,13 @@ More information about the Payment gateway can be found in:
 
 1. [Customer documentation](https://billwerk.gitbook.io/home/)
 2. [API documentation](https://payment-gateway.swagger.billwerk.io/)
-3. [Postman collection](https://www.getpostman.com/collections/bc278c1bea0dc0e440fa)
+3. [Postman collection with sample requests](https://www.getpostman.com/collections/bc278c1bea0dc0e440fa)
+4. [Postman collection with example workflows](https://www.postman.com/collections/639331ca5fef8d0a23af)
 ## **Content**
 
 - [_About_](#About)
 - [_Code structure_](#Code-structure) 
 - [_Setup & Launch_](#Setup-&-Launch)
-- [_Example workflows_](#Example-workflows)
 
 ### About
 
@@ -89,10 +89,6 @@ Using local MongoDb as a data storage can be simplified process of testing an ap
 >**Important note:** before setting this parameter, you must have your own Reepay test account. If you already have it, put your Reepay **private API key** and **webhook secret** into `AppBuilder.CreateDefaultSettings` -> `...SaveSettings(new ReepaySettings...` place. 
 > It will create Reepay settings with your credentials on application start.
 
-### Example workflows
-
-
- 
 
 
 
