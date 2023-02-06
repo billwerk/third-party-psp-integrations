@@ -107,6 +107,7 @@ public static class AppBuilder
             {
                 c.SupportedSubmitMethods();
             });
+            app.UseHsts();
         }
 
         app.UseHttpsRedirection();
@@ -123,17 +124,25 @@ public static class AppBuilder
             .To(Convert.ToInt32)
             .To<PaymentProvider>();
 
+        var settingsRepository = container.GetRequiredService<ISettingsRepository>();
+        var currentSettings = settingsRepository.GetDefault(currentPaymentProvider);
+
         switch (currentPaymentProvider) 
         {
-           case PaymentProvider.FakeProvider: 
-               container.GetRequiredService<ISettingsRepository>().SaveSettings(new FakeProviderSettings());
+           case PaymentProvider.FakeProvider:
+               if (currentSettings is null)
+                   container.GetRequiredService<ISettingsRepository>().SaveSettings(new FakeProviderSettings());
                break;
            case PaymentProvider.Reepay:
-               container.GetRequiredService<ISettingsRepository>().SaveSettings(new ReepaySettings
+               if (currentSettings is null)
                {
-                   PrivateKey = new NotEmptyString("private_key"),
-                   WebhookSecret = new NotEmptyString("webhook_secret"),
-               });
+                   container.GetRequiredService<ISettingsRepository>()
+                       .SaveSettings(new ReepaySettings
+                       {
+                           PrivateKey = new NotEmptyString("private_key"),
+                           WebhookSecret = new NotEmptyString("webhook_secret"),
+                       });
+               }
                break;
            default:
                throw new ArgumentOutOfRangeException("Unkown payment provider detected. Please, check your appsetting.json configuration" +

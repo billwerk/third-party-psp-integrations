@@ -23,6 +23,8 @@ public static class ReepayContainer
         registrator.Register<INotificationParser, ReepayNotificationParser>(Reuse.Scoped, serviceKey: PaymentProvider.Reepay);
         registrator.Register<IPspNotificationHandler, ReepayNotificationHandler>(Reuse.Scoped, serviceKey: PaymentProvider.Reepay);
         
+        registrator.Register<IPspSettingsHandler, ReepaySettingsHandler>(Reuse.Scoped, setup: Setup.With(PaymentProvider.Reepay));
+        
         return registrator;
     }
 }

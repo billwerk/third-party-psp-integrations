@@ -14,7 +14,7 @@ public class ReepaySettings : PspSettings, ICreditCardPspSettings
 
     public override PaymentProvider PaymentProvider => PaymentProvider.Reepay;
 
-    public NotEmptyString WebhookSecret { get; init; }
+    public NotEmptyString WebhookSecret { get; set; }
 
     public NotEmptyString PrivateKey { get; set; }
 
@@ -35,6 +35,7 @@ public class ReepaySettings : PspSettings, ICreditCardPspSettings
             UseCapturePreauth = true,
             UseCancelPreauth = false,
             DefaultPreauthAmount = MinimumDefaultPreauthAmount,
+            HasSupportInitialBearer = false,
         },
         MerchantSettings = new List<MerchantSettingDescription>
         {
@@ -42,7 +43,12 @@ public class ReepaySettings : PspSettings, ICreditCardPspSettings
             {
                 DisplayName = "Private key",
                 KeyName = "PrivateKey",
-                PlaceHolder = "Private key",
+                Required = true,
+            },
+            new()
+            {
+                DisplayName = "Webhook secret",
+                KeyName = "WebhookSecret",
                 Required = true,
             },
         },

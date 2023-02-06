@@ -2,6 +2,7 @@
 
 using PaymentGateway.Application;
 using PaymentGateway.Application.Modules.PSP;
+using PaymentGateway.Domain.BillwerkSDK.Settings;
 using PaymentGateway.Domain.Modules;
 using PaymentGateway.Domain.Modules.PSP.Settings;
 using Reepay.Wrapper;
@@ -17,7 +18,7 @@ public abstract class ReepayHandlerBase : IPspHandler
         ISettingsRepository settingsRepository,
         IFlurlClientFactory flurlClientFactory)
     {
-        Settings = (ReepaySettings)settingsRepository.GetDefault();
+        Settings = (ReepaySettings)settingsRepository.GetDefault(PaymentProvider); 
         Wrapper = new ReepayWrapper(Settings, flurlClientFactory);
     }
 

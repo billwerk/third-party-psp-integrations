@@ -21,6 +21,8 @@ public static class FakeProviderContainer
 
         registrator.Register<INotificationParser, FakeProviderNotificationParser>(Reuse.Scoped, setup: Setup.With(PaymentProvider.FakeProvider));
         registrator.Register<IPspNotificationHandler, FakeProviderNotificationHandler>(Reuse.Scoped, setup: Setup.With(PaymentProvider.FakeProvider));
+        
+        registrator.Register<IPspSettingsHandler, FakeProviderSettingsHandler>(Reuse.Scoped, setup: Setup.With(PaymentProvider.FakeProvider));
 
         return registrator;
     }

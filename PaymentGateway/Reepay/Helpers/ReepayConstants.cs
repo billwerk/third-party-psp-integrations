@@ -13,10 +13,8 @@ public static class ReepayConstants
         SettleUrl = "settle",
         InvoiceBaseUrl = "invoice",
         TransactionSegmentUrl = "transaction",
-        InvoiceListBaseUrl = "list/invoice",
         RefundBaseUrl = "refund",
         PaymentMethodsBaseUrl = "payment_method",
-        PspTransactionDataInvoiceHandle = "invoiceHandle";
-
-    public const int InvoiceListMaxCount = 100;
+        PspTransactionDataInvoiceHandle = "invoiceHandle",
+        WebhookSettingsUrl = "account/webhook_settings";
 }

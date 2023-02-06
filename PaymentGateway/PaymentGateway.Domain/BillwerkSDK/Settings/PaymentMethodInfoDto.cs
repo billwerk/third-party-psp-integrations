@@ -19,5 +19,7 @@
         /// Minimal Preauth Amount if specified.
         /// </summary>
         public decimal? DefaultPreauthAmount { get; set; }
+        
+        public bool HasSupportInitialBearer { get; set; }
     }
 }

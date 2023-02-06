@@ -15,6 +15,7 @@ using Reepay.SDK.Models.PaymentMethods;
 using Reepay.SDK.Models.RecurringSession;
 using PaymentGateway.Domain.Modules.PSP.Settings;
 using PaymentGateway.Shared;
+using Reepay.SDK.Models;
 using Reepay.SDK.Models.Refund;
 using Reepay.SDK.Models.Errors;
 using static Reepay.Helpers.ReepayConstants;
@@ -120,6 +121,10 @@ public class ReepayWrapper : IDisposable
         _apiClient.Request(RefundBaseUrl)
             .PostJsonAsync(refundRequest)
             .To(ConvertResponseTo<RefundResponse>);
+
+    public async Task<Result<GetWebhookSettings, PaymentErrorDto>> GetWebhookSettingsAsync() => await _apiClient.Request(WebhookSettingsUrl)
+        .GetAsync()
+        .To(ConvertResponseTo<GetWebhookSettings>);
 
     private static async Task<Result<T, PaymentErrorDto>> ConvertResponseTo<T>(Task<IFlurlResponse> response)
     {

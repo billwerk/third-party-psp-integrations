@@ -3,6 +3,7 @@ using DryIoc.Microsoft.DependencyInjection;
 using FakeProvider;
 using Microsoft.Extensions.Configuration;
 using PaymentGateway.Application;
+using PaymentGateway.Application.Modules.Settings;
 using PaymentGateway.Application.Notification.Billwerk;
 using PaymentGateway.Infrastructure.DataAccess;
 using PaymentGateway.Infrastructure.Modules;
@@ -22,6 +23,7 @@ public static class PaymentGatewayContainer
         
         container.Register<IFlurlClientFactory, PspFlurlClientFactory>(Reuse.Scoped);
         container.Register<IBillwerkWebhookWrapper, BillwerkWebhookWrapper>(Reuse.Scoped);
+        container.Register<ISettingsHandler, SettingsHandler>(Reuse.Scoped);
 
         var useInMemoryStorage = configuration[PlaygroundEnvironmentUseInMemoryStorage]!.To(Convert.ToBoolean);
         

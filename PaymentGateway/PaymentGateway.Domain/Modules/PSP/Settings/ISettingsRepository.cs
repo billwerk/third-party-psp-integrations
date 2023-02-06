@@ -7,7 +7,9 @@ public interface ISettingsRepository
 {
     IMerchantPspSettings GetById(NotEmptyString pspSettingsId);
 
-    IMerchantPspSettings GetDefault();
+    IMerchantPspSettings? GetDefault(PaymentProvider paymentProvider);
+
+    public IMerchantPspSettings? GetDefault();
 
     void SaveSettings(PspSettings pspSettings);
 }

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) billwerk GmbH. All rights reserved
 
 using PaymentGateway.Domain.BillwerkSDK.Settings;
+using PaymentGateway.Domain.Modules;
 using PaymentGateway.Domain.Modules.PSP.Settings;
 using PaymentGateway.Domain.Shared.ValueObjects;
 using PaymentGateway.Shared;
@@ -12,6 +13,7 @@ public class PspSettingsMemoryRepository : ISettingsRepository
     //We don't expect more than one settings for test purpose in memory storage.
     public IMerchantPspSettings GetById(NotEmptyString pspSettingsId)
         => InMemoryStorage.PspSettings.First();
+    public IMerchantPspSettings? GetDefault(PaymentProvider paymentProvider) => throw new NotImplementedException();
 
     public IMerchantPspSettings GetDefault()
         => InMemoryStorage.PspSettings.FirstOrDefault();
